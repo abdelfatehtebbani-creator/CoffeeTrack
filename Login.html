@@ -35,6 +35,11 @@
   </div>
 
   <script>
+    // الرابط الحقيقي لـ /exec يُحقَن من الخادم (Code.gs) - لا تعتمد أبداً على
+    // window.location هنا، لأن هذه الصفحة تُعرض داخل إطار معزول على نطاق
+    // مختلف (googleusercontent.com) وقراءته يعطي رابطاً داخلياً خاطئاً.
+    const BASE_URL = '<?!= baseUrl ?>';
+
     function setLang(lang){
       document.body.dir = (lang === 'ar') ? 'rtl' : 'ltr';
       document.getElementById('btn-ar').classList.toggle('active', lang === 'ar');
@@ -76,10 +81,10 @@
           sessionStorage.setItem('username', res.username);
 
           if(res.role === 'Accountant'){
-            window.top.location.href = getBaseUrl_() + '?page=reports';
+            window.top.location.href = BASE_URL + '?page=reports';
           } else {
             // Admin or DataEntry both land on Entry; Admin can navigate to Reports from there
-            window.top.location.href = getBaseUrl_() + '?page=entry';
+            window.top.location.href = BASE_URL + '?page=entry';
           }
         })
         .withFailureHandler(function(err){
@@ -88,10 +93,6 @@
           showAlert(err.message || String(err), 'error');
         })
         .login(username, password);
-    }
-
-    function getBaseUrl_(){
-      return window.location.href.split('?')[0];
     }
 
     // Enter key submits

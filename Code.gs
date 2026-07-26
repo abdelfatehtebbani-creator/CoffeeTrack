@@ -28,6 +28,12 @@ function doGet(e) {
       template = HtmlService.createTemplateFromFile('Login');
   }
 
+  // مهم جداً: لا يمكن الاعتماد على window.location من طرف العميل للحصول على
+  // رابط /exec الحقيقي، لأن الواجهة تُعرض داخل إطار معزول (sandboxed iframe)
+  // على نطاق مختلف (googleusercontent.com). لذلك نحقن الرابط الصحيح من
+  // الخادم مباشرة عبر ScriptApp.getService().getUrl() ليستخدمه كل عميل.
+  template.baseUrl = ScriptApp.getService().getUrl();
+
   return template.evaluate()
     .setTitle('AL AKER | Coffee Track')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')

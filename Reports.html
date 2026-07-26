@@ -142,6 +142,10 @@
   </div>
 
   <script>
+    // الرابط الحقيقي لـ /exec يُحقَن من الخادم - لا تعتمد على window.location
+    // (انظر التعليق المطابق في Login.html لسبب ذلك).
+    const BASE_URL = '<?!= baseUrl ?>';
+
     let TOKEN = null;
     let LANG = 'ar';
 
@@ -150,9 +154,9 @@
     function init(){
       TOKEN = sessionStorage.getItem('token');
       const role = sessionStorage.getItem('role');
-      if(!TOKEN){ window.top.location.href = getBaseUrl_(); return; }
+      if(!TOKEN){ window.top.location.href = BASE_URL; return; }
       if(role !== 'Admin' && role !== 'Accountant'){
-        window.top.location.href = getBaseUrl_() + '?page=entry';
+        window.top.location.href = BASE_URL + '?page=entry';
         return;
       }
       document.getElementById('userPill').textContent = sessionStorage.getItem('fullName') + ' · ' + role;
@@ -160,12 +164,11 @@
       refreshAll();
     }
 
-    function getBaseUrl_(){ return window.location.href.split('?')[0]; }
-    function goEntry(){ window.top.location.href = getBaseUrl_() + '?page=entry'; }
+    function goEntry(){ window.top.location.href = BASE_URL + '?page=entry'; }
     function doLogout(){
       google.script.run.logout(TOKEN);
       sessionStorage.clear();
-      window.top.location.href = getBaseUrl_();
+      window.top.location.href = BASE_URL;
     }
 
     function setLang(lang){
@@ -184,7 +187,7 @@
         .withFailureHandler(function(err){
           alert(err.message || String(err));
           sessionStorage.clear();
-          window.top.location.href = getBaseUrl_();
+          window.top.location.href = BASE_URL;
         })
         .getAllReports(TOKEN);
     }

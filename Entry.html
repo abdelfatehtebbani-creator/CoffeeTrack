@@ -149,6 +149,10 @@
   </div>
 
   <script>
+    // الرابط الحقيقي لـ /exec يُحقَن من الخادم - لا تعتمد على window.location
+    // (انظر التعليق المطابق في Login.html لسبب ذلك).
+    const BASE_URL = '<?!= baseUrl ?>';
+
     let TOKEN = null;
     let COFFEE_TYPES = [];
 
@@ -157,9 +161,9 @@
     function init(){
       TOKEN = sessionStorage.getItem('token');
       const role = sessionStorage.getItem('role');
-      if(!TOKEN){ window.top.location.href = getBaseUrl_(); return; }
+      if(!TOKEN){ window.top.location.href = BASE_URL; return; }
       if(role !== 'Admin' && role !== 'DataEntry'){
-        window.top.location.href = getBaseUrl_() + '?page=reports';
+        window.top.location.href = BASE_URL + '?page=reports';
         return;
       }
       document.getElementById('userPill').textContent = sessionStorage.getItem('fullName') + ' · ' + role;
@@ -169,12 +173,11 @@
       loadBalances();
     }
 
-    function getBaseUrl_(){ return window.location.href.split('?')[0]; }
-    function goReports(){ window.top.location.href = getBaseUrl_() + '?page=reports'; }
+    function goReports(){ window.top.location.href = BASE_URL + '?page=reports'; }
     function doLogout(){
       google.script.run.logout(TOKEN);
       sessionStorage.clear();
-      window.top.location.href = getBaseUrl_();
+      window.top.location.href = BASE_URL;
     }
 
     function setDefaultDates_(){
@@ -242,7 +245,7 @@
     function handleSessionError_(err){
       alert(err.message || String(err));
       sessionStorage.clear();
-      window.top.location.href = getBaseUrl_();
+      window.top.location.href = BASE_URL;
     }
 
     function showAlert_(panel, msg, type){

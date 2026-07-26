@@ -1,0 +1,108 @@
+# Database (Google Sheets Structure)
+
+قاعدة البيانات هي Google Sheet واحد، وكل جدول = ورقة (Sheet) منفصلة. أسماء الشيتات ثابتة في `Setup.gs` ضمن الكائن `SHEETS` — لا تُعدَّل الأسماء يدوياً من واجهة Google Sheets دون تحديث `Setup.gs` بالمقابل.
+
+## 1) `Config`
+إعدادات عامة قابلة للتعديل بدون تعديل الكود.
+
+| العمود | النوع | الوصف |
+|---|---|---|
+| `Key` | نص | معرّف الإعداد (مثال: `BagSizeKg`) |
+| `Value` | نص/رقم | القيمة |
+| `Notes` | نص | شرح ثنائي اللغة |
+
+**القيم الافتراضية المزروعة عند `initializeSpreadsheet()`:**
+| Key | Value الافتراضية | الاستخدام |
+|---|---|---|
+| `BagSizeKg` | `0.2` | حجم الكيس الواحد بالكغ — يُستخدم في `submitPackingProcess` لحساب `ExpectedOutputKg` |
+| `CoffeeType1` | `Arabica` | الصنف الأول |
+| `CoffeeType2` | `Robusta` | الصنف الثاني |
+| `MaxRoastingWastePercent` | `20` | حد تحذيري (غير مُفعَّل حالياً في الواجهة كتنبيه صريح — انظر TODO) |
+| `MaxPackingWastePercent` | `5` | نفس الغرض لمرحلة التعبئة |
+
+## 2) `Users`
+| العمود | النوع | الوصف |
+|---|---|---|
+| `Username` | نص | فريد، غير حساس لحالة الأحرف عند تسجيل الدخول |
+| `Password` | نص | **نص عادي حالياً — غير مشفّر** (انظر قيود الأمان في TODO) |
+| `FullName` | نص | يُعرض في الواجهة (`userPill`) |
+| `Role` | نص | أحد قيم `ROLES`: `Admin` / `DataEntry` / `Accountant` |
+| `Active` | Boolean | `TRUE`/`FALSE` — المستخدمون غير النشطين لا يمكنهم الدخول |
+
+## 3) `RawMaterial_Received` — استلام من المورد
+| العمود | الوصف |
+|---|---|
+| `ID` | معرّف تلقائي `RAW-000001` |
+| `Date` | تاريخ الاستلام |
+| `CoffeeType` | يجب أن يطابق `CoffeeType1` أو `CoffeeType2` من `Config` |
+| `QuantityKg` | > 0 |
+| `Supplier` | اختياري |
+| `Notes` | اختياري |
+| `EnteredBy` | Username من الجلسة |
+| `Timestamp` | تلقائي |
+
+## 4) `Sent_to_Roastery` — إرسال للتحميص
+| العمود | الوصف |
+|---|---|
+| `ID` | `SEN-000001` |
+| `Date`, `CoffeeType`, `QuantityKg`, `BatchRef`, `Notes`, `EnteredBy`, `Timestamp` | — |
+
+**قاعدة تحقق:** `QuantityKg ≤ getRawStockBalance_(CoffeeType)` وإلا يُرفض الإدخال بالكامل.
+
+## 5) `Received_from_Roastery` — استلام بعد التحميص
+| العمود | الوصف |
+|---|---|
+| `ID` | `REC-000001` |
+| `SentQuantityKg` | الكمية المرسلة (تُدخَل يدوياً لكل دفعة، وليست مشتقة تلقائياً من `Sent_to_Roastery`) |
+| `ReceivedQuantityKg` | الكمية الفعلية المستلمة، يجب ≤ `SentQuantityKg` |
+| `WasteKg` | = `SentQuantityKg - ReceivedQuantityKg` (محسوب تلقائياً، **مخزَّن** لتسريع التقارير) |
+| `WastePercent` | = `WasteKg / SentQuantityKg * 100` (محسوب تلقائياً، مخزَّن) |
+
+## 6) `Packing_Process` — التعبئة والتغليف
+| العمود | الوصف |
+|---|---|
+| `ID` | `PAC-000001` |
+| `InputQuantityKg` | كمية القهوة المحمصة المدخلة للتعبئة، يجب ≤ `getRoastedStockBalance_()` |
+| `BagsProduced` | عدد أكياس 200غ الناتجة |
+| `ExpectedOutputKg` | = `BagsProduced × BagSizeKg` (من `Config`) |
+| `WasteKg` | = `InputQuantityKg - ExpectedOutputKg` |
+| `WastePercent` | = `WasteKg / InputQuantityKg * 100` |
+
+## 7) `Finished_Products` — منتج نهائي جاهز
+| العمود | الوصف |
+|---|---|
+| `ID` | `FIN-000001` |
+| `BagsAdded` | يجب ≤ `getPackingInProgressBags_()` (الأكياس المنتجة في `Packing_Process` والتي لم تُسجَّل بعد كمنتج نهائي) |
+| `ProductName` | افتراضي: "Ready-Made Packed Coffee" |
+
+## 8) `AuditLog`
+سجل تدقيق بسيط لكل عملية دخول/إدخال بيانات (`Timestamp`, `Username`, `Action`, `Details`). للقراءة اليدوية فقط حالياً — لا توجد واجهة لعرضه (انظر TODO).
+
+---
+
+## علاقات البيانات (Data Relationships)
+لا توجد مفاتيح خارجية حقيقية (Google Sheets لا يدعمها). العلاقة بين المراحل **محسوبة منطقياً** عبر الجمع/الطرح في `SheetService.gs`، وليست عبر أعمدة ربط صريحة:
+
+```
+getRawStockBalance_(type)     = Σ RawMaterial_Received.QuantityKg(type) − Σ Sent_to_Roastery.QuantityKg(type)
+getRoastedStockBalance_()     = Σ Received_from_Roastery.ReceivedQuantityKg − Σ Packing_Process.InputQuantityKg
+getPackingInProgressBags_()   = Σ Packing_Process.BagsProduced − Σ Finished_Products.BagsAdded
+```
+
+`BatchRef` هو حقل نصي حر (وليس مفتاح صارم) يُستخدم لربط الدفعات يدوياً بين المراحل عند الحاجة للتتبع — لا يُفرض تفرّده حالياً برمجياً.
+
+## قواعد التحقق (Validation Rules) — ملخص
+| العملية | القاعدة |
+|---|---|
+| كل الكميات | يجب أن تكون رقماً موجباً (`> 0`)، عدا `BagsProduced` الذي يقبل `≥ 0` |
+| `Sent_to_Roastery` | `QuantityKg ≤` رصيد الحبوب الخام المتوفر لنفس الصنف |
+| `Received_from_Roastery` | `ReceivedQuantityKg ≤ SentQuantityKg` |
+| `Packing_Process` | `InputQuantityKg ≤` رصيد القهوة المحمصة المتوفرة |
+| `Finished_Products` | `BagsAdded ≤` عدد الأكياس المتوفرة في طور التعبئة |
+
+كل هذه القواعد **صارمة (Strict)**: أي تجاوز يُرفض بالكامل ولا يُسجَّل، مع رسالة خطأ ثنائية اللغة توضح الرصيد المتاح فعلياً.
+
+## هيكل الصف العام (يجب اتباعه لأي شيت جديد)
+- العمود الأول دائماً `ID`.
+- العمود الأخير دائماً `Timestamp`.
+- الصف الأول = Headers، مجمّد (`setFrozenRows(1)`) ومنسّق (خلفية بنية، خط أبيض عريض).

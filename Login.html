@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('Style'); ?>
+</head>
+<body dir="rtl">
+
+  <div class="lang-switch">
+    <button id="btn-ar" class="active" onclick="setLang('ar')">AR</button>
+    <button id="btn-en" onclick="setLang('en')">EN</button>
+  </div>
+
+  <div class="login-wrap">
+    <div class="login-card">
+      <img class="logo" src="data:image/jpeg;base64,<?!= include('LogoBase64'); ?>" alt="Al Aker Sweets">
+      <h1 class="i18n" data-ar="متابعة تغليف القهوة" data-en="Coffee Packaging Tracker">متابعة تغليف القهوة</h1>
+      <p class="tagline i18n" data-ar="AL AKER SWEETS" data-en="AL AKER SWEETS">AL AKER SWEETS</p>
+
+      <div class="field">
+        <label class="i18n" data-ar="اسم المستخدم" data-en="Username">اسم المستخدم</label>
+        <input type="text" id="username" autocomplete="username">
+      </div>
+      <div class="field">
+        <label class="i18n" data-ar="كلمة المرور" data-en="Password">كلمة المرور</label>
+        <input type="password" id="password" autocomplete="current-password">
+      </div>
+
+      <button class="btn btn-primary btn-block" id="loginBtn" onclick="doLogin()">
+        <span class="i18n" data-ar="تسجيل الدخول" data-en="Login">تسجيل الدخول</span>
+      </button>
+
+      <div id="alertBox" class="alert alert-error"></div>
+    </div>
+  </div>
+
+  <script>
+    function setLang(lang){
+      document.body.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+      document.getElementById('btn-ar').classList.toggle('active', lang === 'ar');
+      document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+      document.querySelectorAll('.i18n').forEach(el => {
+        el.textContent = el.getAttribute('data-' + lang);
+      });
+      localStorage.setItem && null; // no localStorage available reliably in Apps Script webview; ignore persistence
+    }
+
+    function showAlert(msg, type){
+      const box = document.getElementById('alertBox');
+      box.textContent = msg;
+      box.className = 'alert show alert-' + (type || 'error');
+    }
+
+    function doLogin(){
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      if(!username || !password){
+        showAlert('الرجاء إدخال اسم المستخدم وكلمة المرور / Please enter username and password', 'error');
+        return;
+      }
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spin"></span>';
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.disabled = false;
+          btn.innerHTML = '<span class="i18n" data-ar="تسجيل الدخول" data-en="Login">تسجيل الدخول</span>';
+          if(!res.success){
+            showAlert(res.error, 'error');
+            return;
+          }
+          sessionStorage.setItem('token', res.token);
+          sessionStorage.setItem('role', res.role);
+          sessionStorage.setItem('fullName', res.fullName);
+          sessionStorage.setItem('username', res.username);
+
+          if(res.role === 'Accountant'){
+            window.top.location.href = getBaseUrl_() + '?page=reports';
+          } else {
+            // Admin or DataEntry both land on Entry; Admin can navigate to Reports from there
+            window.top.location.href = getBaseUrl_() + '?page=entry';
+          }
+        })
+        .withFailureHandler(function(err){
+          btn.disabled = false;
+          btn.innerHTML = '<span class="i18n" data-ar="تسجيل الدخول" data-en="Login">تسجيل الدخول</span>';
+          showAlert(err.message || String(err), 'error');
+        })
+        .login(username, password);
+    }
+
+    function getBaseUrl_(){
+      return window.location.href.split('?')[0];
+    }
+
+    // Enter key submits
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Enter') doLogin();
+    });
+  </script>
+</body>
+</html>

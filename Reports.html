@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('Style'); ?>
+</head>
+<body dir="rtl">
+
+  <div class="lang-switch">
+    <button id="btn-ar" class="active" onclick="setLang('ar')">AR</button>
+    <button id="btn-en" onclick="setLang('en')">EN</button>
+  </div>
+
+  <div class="app-shell">
+    <div class="app-header">
+      <div class="brand">
+        <img src="data:image/jpeg;base64,<?!= include('LogoBase64'); ?>" alt="logo">
+        <div class="brand-text">
+          <div class="title i18n" data-ar="متابعة تغليف القهوة" data-en="Coffee Packaging Tracker">متابعة تغليف القهوة</div>
+          <div class="subtitle i18n" data-ar="التقارير" data-en="Reports">التقارير</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="pill" id="userPill">-</span>
+        <button class="btn btn-ghost" id="entryNavBtn" style="display:none" onclick="goEntry()">
+          <span class="i18n" data-ar="الإدخال" data-en="Data Entry">الإدخال</span>
+        </button>
+        <button class="btn btn-ghost" onclick="refreshAll()">
+          <span class="i18n" data-ar="تحديث" data-en="Refresh">تحديث</span>
+        </button>
+        <button class="btn btn-ghost" onclick="doLogout()">
+          <span class="i18n" data-ar="خروج" data-en="Logout">خروج</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="loadingMsg" class="empty-state i18n" data-ar="جاري تحميل التقارير..." data-en="Loading reports...">جاري تحميل التقارير...</div>
+
+    <div id="reportsContainer" style="display:none">
+
+      <!-- 1. Raw Received by type -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>
+          <span class="i18n" data-ar="1) الكميات المستلمة من المورد حسب الصنف" data-en="1) Quantities Received from Supplier by Type">1) الكميات المستلمة من المورد حسب الصنف</span>
+        </div>
+        <div class="kpi-grid" id="r1-totals"></div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</th>
+            <th class="i18n" data-ar="الصنف" data-en="Type">الصنف</th>
+            <th class="i18n" data-ar="الكمية (كغ)" data-en="Qty (kg)">الكمية (كغ)</th>
+            <th class="i18n" data-ar="المورد" data-en="Supplier">المورد</th>
+            <th class="i18n" data-ar="أدخل بواسطة" data-en="Entered By">أدخل بواسطة</th>
+          </tr></thead>
+          <tbody id="r1-body"></tbody>
+        </table></div>
+      </div>
+
+      <!-- 2. Sent to Roastery -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>
+          <span class="i18n" data-ar="2) الكميات المرسلة للتحميص" data-en="2) Quantities Sent to Roastery">2) الكميات المرسلة للتحميص</span>
+        </div>
+        <div class="kpi-grid" id="r2-totals"></div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</th>
+            <th class="i18n" data-ar="الصنف" data-en="Type">الصنف</th>
+            <th class="i18n" data-ar="الكمية (كغ)" data-en="Qty (kg)">الكمية (كغ)</th>
+            <th class="i18n" data-ar="رقم الدفعة" data-en="Batch">رقم الدفعة</th>
+            <th class="i18n" data-ar="أدخل بواسطة" data-en="Entered By">أدخل بواسطة</th>
+          </tr></thead>
+          <tbody id="r2-body"></tbody>
+        </table></div>
+      </div>
+
+      <!-- 3. Received from Roastery + waste -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>
+          <span class="i18n" data-ar="3) الكميات المستلمة بعد التحميص ونسبة الهدر" data-en="3) Quantities Received After Roasting & Waste %">3) الكميات المستلمة بعد التحميص ونسبة الهدر</span>
+        </div>
+        <div class="kpi-grid" id="r3-totals"></div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</th>
+            <th class="i18n" data-ar="الدفعة" data-en="Batch">الدفعة</th>
+            <th class="i18n" data-ar="المرسل (كغ)" data-en="Sent (kg)">المرسل (كغ)</th>
+            <th class="i18n" data-ar="المستلم (كغ)" data-en="Received (kg)">المستلم (كغ)</th>
+            <th class="i18n" data-ar="الهدر (كغ)" data-en="Waste (kg)">الهدر (كغ)</th>
+            <th class="i18n" data-ar="الهدر %" data-en="Waste %">الهدر %</th>
+          </tr></thead>
+          <tbody id="r3-body"></tbody>
+        </table></div>
+      </div>
+
+      <!-- 4. Roasted Available -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>
+          <span class="i18n" data-ar="4) الكمية المحمصة المتوفرة" data-en="4) Roasted Coffee Available">4) الكمية المحمصة المتوفرة</span>
+        </div>
+        <div class="kpi-grid" id="r4-totals"></div>
+      </div>
+
+      <!-- 5. Packing in progress -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>
+          <span class="i18n" data-ar="5) الكمية في طور التعبئة (نصف جاهزة) والهدر" data-en="5) Quantity in Packing (Semi-Finished) & Waste">5) الكمية في طور التعبئة (نصف جاهزة) والهدر</span>
+        </div>
+        <div class="kpi-grid" id="r5-totals"></div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</th>
+            <th class="i18n" data-ar="الدفعة" data-en="Batch">الدفعة</th>
+            <th class="i18n" data-ar="الداخل (كغ)" data-en="Input (kg)">الداخل (كغ)</th>
+            <th class="i18n" data-ar="الأكياس" data-en="Bags">الأكياس</th>
+            <th class="i18n" data-ar="الهدر (كغ)" data-en="Waste (kg)">الهدر (كغ)</th>
+            <th class="i18n" data-ar="الهدر %" data-en="Waste %">الهدر %</th>
+          </tr></thead>
+          <tbody id="r5-body"></tbody>
+        </table></div>
+      </div>
+
+      <!-- 6. Finished products -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>
+          <span class="i18n" data-ar="6) الكمية الجاهزة (منتج نهائي)" data-en="6) Ready Quantity (Finished Product)">6) الكمية الجاهزة (منتج نهائي)</span>
+        </div>
+        <div class="kpi-grid" id="r6-totals"></div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</th>
+            <th class="i18n" data-ar="الدفعة" data-en="Batch">الدفعة</th>
+            <th class="i18n" data-ar="الأكياس المضافة" data-en="Bags Added">الأكياس المضافة</th>
+            <th class="i18n" data-ar="المنتج" data-en="Product">المنتج</th>
+            <th class="i18n" data-ar="أدخل بواسطة" data-en="Entered By">أدخل بواسطة</th>
+          </tr></thead>
+          <tbody id="r6-body"></tbody>
+        </table></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let TOKEN = null;
+    let LANG = 'ar';
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init(){
+      TOKEN = sessionStorage.getItem('token');
+      const role = sessionStorage.getItem('role');
+      if(!TOKEN){ window.top.location.href = getBaseUrl_(); return; }
+      if(role !== 'Admin' && role !== 'Accountant'){
+        window.top.location.href = getBaseUrl_() + '?page=entry';
+        return;
+      }
+      document.getElementById('userPill').textContent = sessionStorage.getItem('fullName') + ' · ' + role;
+      if(role === 'Admin') document.getElementById('entryNavBtn').style.display = 'inline-flex';
+      refreshAll();
+    }
+
+    function getBaseUrl_(){ return window.location.href.split('?')[0]; }
+    function goEntry(){ window.top.location.href = getBaseUrl_() + '?page=entry'; }
+    function doLogout(){
+      google.script.run.logout(TOKEN);
+      sessionStorage.clear();
+      window.top.location.href = getBaseUrl_();
+    }
+
+    function setLang(lang){
+      LANG = lang;
+      document.body.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+      document.getElementById('btn-ar').classList.toggle('active', lang === 'ar');
+      document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+      document.querySelectorAll('.i18n').forEach(el => { el.textContent = el.getAttribute('data-' + lang); });
+    }
+
+    function refreshAll(){
+      document.getElementById('loadingMsg').style.display = 'block';
+      document.getElementById('reportsContainer').style.display = 'none';
+      google.script.run
+        .withSuccessHandler(renderAll_)
+        .withFailureHandler(function(err){
+          alert(err.message || String(err));
+          sessionStorage.clear();
+          window.top.location.href = getBaseUrl_();
+        })
+        .getAllReports(TOKEN);
+    }
+
+    function kpi_(labelAr, labelEn, value){
+      const label = LANG === 'ar' ? labelAr : labelEn;
+      return `<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div></div>`;
+    }
+
+    function wasteBadge_(pct){
+      const cls = pct <= 5 ? 'badge-ok' : (pct <= 15 ? 'badge-warn' : 'badge-danger');
+      return `<span class="badge ${cls}">${pct}%</span>`;
+    }
+
+    function renderAll_(data){
+      // ----- 1 -----
+      document.getElementById('r1-totals').innerHTML =
+        Object.keys(data.rawReceived.totalsByType).map(t => kpi_(t + ' (كغ)', t + ' (kg)', data.rawReceived.totalsByType[t])).join('')
+        + kpi_('الإجمالي (كغ)', 'Grand Total (kg)', data.rawReceived.grandTotalKg);
+      document.getElementById('r1-body').innerHTML = data.rawReceived.rows.map(r => `
+        <tr><td>${fmtDate_(r.date)}</td><td>${r.coffeeType}</td><td>${r.quantityKg}</td><td>${r.supplier||''}</td><td>${r.enteredBy}</td></tr>
+      `).join('') || emptyRow_(5);
+
+      // ----- 2 -----
+      document.getElementById('r2-totals').innerHTML =
+        Object.keys(data.sentToRoastery.totalsByType).map(t => kpi_(t + ' (كغ)', t + ' (kg)', data.sentToRoastery.totalsByType[t])).join('')
+        + kpi_('الإجمالي (كغ)', 'Grand Total (kg)', data.sentToRoastery.grandTotalKg);
+      document.getElementById('r2-body').innerHTML = data.sentToRoastery.rows.map(r => `
+        <tr><td>${fmtDate_(r.date)}</td><td>${r.coffeeType}</td><td>${r.quantityKg}</td><td>${r.batchRef||''}</td><td>${r.enteredBy}</td></tr>
+      `).join('') || emptyRow_(5);
+
+      // ----- 3 -----
+      const t3 = data.receivedFromRoastery.totals;
+      document.getElementById('r3-totals').innerHTML =
+        kpi_('إجمالي المرسل (كغ)', 'Total Sent (kg)', t3.sentKg) +
+        kpi_('إجمالي المستلم (كغ)', 'Total Received (kg)', t3.receivedKg) +
+        kpi_('إجمالي الهدر (كغ)', 'Total Waste (kg)', t3.wasteKg) +
+        kpi_('نسبة الهدر', 'Waste %', t3.wastePercent + '%');
+      document.getElementById('r3-body').innerHTML = data.receivedFromRoastery.rows.map(r => `
+        <tr><td>${fmtDate_(r.date)}</td><td>${r.batchRef||''}</td><td>${r.sentKg}</td><td>${r.receivedKg}</td><td>${r.wasteKg}</td><td>${wasteBadge_(r.wastePercent)}</td></tr>
+      `).join('') || emptyRow_(6);
+
+      // ----- 4 -----
+      const r4 = data.roastedAvailable;
+      document.getElementById('r4-totals').innerHTML =
+        kpi_('إجمالي المستلم من التحميص (كغ)', 'Total Received from Roastery (kg)', r4.totalReceivedFromRoastery) +
+        kpi_('المرسل للتعبئة (كغ)', 'Sent to Packing (kg)', r4.totalSentToPacking) +
+        kpi_('المتوفر حالياً (كغ)', 'Currently Available (kg)', r4.availableKg);
+
+      // ----- 5 -----
+      const t5 = data.packingInProgress.totals;
+      document.getElementById('r5-totals').innerHTML =
+        kpi_('إجمالي الداخل (كغ)', 'Total Input (kg)', t5.inputKg) +
+        kpi_('إجمالي الأكياس المنتجة', 'Total Bags Produced', t5.bagsProduced) +
+        kpi_('إجمالي الهدر (كغ)', 'Total Waste (kg)', t5.wasteKg) +
+        kpi_('نسبة الهدر', 'Waste %', t5.wastePercent + '%') +
+        kpi_('أكياس لا تزال قيد التعبئة', 'Bags Still In Progress', t5.bagsStillInProgress);
+      document.getElementById('r5-body').innerHTML = data.packingInProgress.rows.map(r => `
+        <tr><td>${fmtDate_(r.date)}</td><td>${r.batchRef||''}</td><td>${r.inputKg}</td><td>${r.bagsProduced}</td><td>${r.wasteKg}</td><td>${wasteBadge_(r.wastePercent)}</td></tr>
+      `).join('') || emptyRow_(6);
+
+      // ----- 6 -----
+      document.getElementById('r6-totals').innerHTML =
+        kpi_('إجمالي الأكياس الجاهزة', 'Total Finished Bags', data.finishedProducts.totalBags);
+      document.getElementById('r6-body').innerHTML = data.finishedProducts.rows.map(r => `
+        <tr><td>${fmtDate_(r.date)}</td><td>${r.batchRef||''}</td><td>${r.bagsAdded}</td><td>${r.productName||''}</td><td>${r.enteredBy}</td></tr>
+      `).join('') || emptyRow_(5);
+
+      document.getElementById('loadingMsg').style.display = 'none';
+      document.getElementById('reportsContainer').style.display = 'block';
+    }
+
+    function emptyRow_(colspan){
+      const msg = LANG === 'ar' ? 'لا توجد بيانات' : 'No data';
+      return `<tr><td colspan="${colspan}" class="empty-state">${msg}</td></tr>`;
+    }
+
+    function fmtDate_(d){
+      if(!d) return '';
+      try{
+        const dt = new Date(d);
+        if(isNaN(dt.getTime())) return d;
+        return dt.toISOString().slice(0,10);
+      }catch(e){ return d; }
+    }
+  </script>
+</body>
+</html>

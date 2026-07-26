@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('Style'); ?>
+</head>
+<body dir="rtl">
+
+  <div class="lang-switch">
+    <button id="btn-ar" class="active" onclick="setLang('ar')">AR</button>
+    <button id="btn-en" onclick="setLang('en')">EN</button>
+  </div>
+
+  <div class="app-shell">
+    <div class="app-header">
+      <div class="brand">
+        <img src="data:image/jpeg;base64,<?!= include('LogoBase64'); ?>" alt="logo">
+        <div class="brand-text">
+          <div class="title i18n" data-ar="متابعة تغليف القهوة" data-en="Coffee Packaging Tracker">متابعة تغليف القهوة</div>
+          <div class="subtitle i18n" data-ar="صفحة إدخال البيانات" data-en="Data Entry">صفحة إدخال البيانات</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="pill" id="userPill">-</span>
+        <button class="btn btn-ghost" id="reportsNavBtn" style="display:none" onclick="goReports()">
+          <span class="i18n" data-ar="التقارير" data-en="Reports">التقارير</span>
+        </button>
+        <button class="btn btn-ghost" onclick="doLogout()">
+          <span class="i18n" data-ar="خروج" data-en="Logout">خروج</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI Dashboard -->
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="raw" onclick="showTab('raw')">
+        <span class="i18n" data-ar="استلام من المورد" data-en="Received from Supplier">استلام من المورد</span>
+      </button>
+      <button class="tab-btn" data-tab="sent" onclick="showTab('sent')">
+        <span class="i18n" data-ar="إرسال للتحميص" data-en="Sent to Roastery">إرسال للتحميص</span>
+      </button>
+      <button class="tab-btn" data-tab="received" onclick="showTab('received')">
+        <span class="i18n" data-ar="استلام من التحميص" data-en="Received from Roastery">استلام من التحميص</span>
+      </button>
+      <button class="tab-btn" data-tab="packing" onclick="showTab('packing')">
+        <span class="i18n" data-ar="التعبئة والتغليف" data-en="Packing">التعبئة والتغليف</span>
+      </button>
+      <button class="tab-btn" data-tab="finished" onclick="showTab('finished')">
+        <span class="i18n" data-ar="منتج نهائي جاهز" data-en="Finished Product">منتج نهائي جاهز</span>
+      </button>
+    </div>
+
+    <!-- ===== FORM 1: Raw Received ===== -->
+    <div class="card tab-panel" id="panel-raw">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="Coffee Beans Received from the Supplier" data-en="Coffee Beans Received from the Supplier">Coffee Beans Received from the Supplier</span>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</label><input type="date" id="raw_date"></div>
+        <div class="field"><label class="i18n" data-ar="الصنف" data-en="Coffee Type">الصنف</label>
+          <select id="raw_coffeeType"></select>
+        </div>
+        <div class="field"><label class="i18n" data-ar="الكمية (كغ)" data-en="Quantity (kg)">الكمية (كغ)</label><input type="number" step="0.01" id="raw_qty"></div>
+        <div class="field"><label class="i18n" data-ar="المورد" data-en="Supplier">المورد</label><input type="text" id="raw_supplier"></div>
+        <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="raw_notes" rows="2"></textarea></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('raw')">
+        <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
+      </button>
+      <div class="alert" id="alert-raw"></div>
+    </div>
+
+    <!-- ===== FORM 2: Sent to Roastery ===== -->
+    <div class="card tab-panel" id="panel-sent" style="display:none">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="Coffee Beans Sent to the Roastery" data-en="Coffee Beans Sent to the Roastery">Coffee Beans Sent to the Roastery</span>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</label><input type="date" id="sent_date"></div>
+        <div class="field"><label class="i18n" data-ar="الصنف" data-en="Coffee Type">الصنف</label>
+          <select id="sent_coffeeType"></select>
+        </div>
+        <div class="field"><label class="i18n" data-ar="الكمية (كغ)" data-en="Quantity (kg)">الكمية (كغ)</label><input type="number" step="0.01" id="sent_qty"></div>
+        <div class="field"><label class="i18n" data-ar="رقم الدفعة" data-en="Batch Ref">رقم الدفعة</label><input type="text" id="sent_batch"></div>
+        <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="sent_notes" rows="2"></textarea></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('sent')">
+        <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
+      </button>
+      <div class="alert" id="alert-sent"></div>
+    </div>
+
+    <!-- ===== FORM 3: Received from Roastery ===== -->
+    <div class="card tab-panel" id="panel-received" style="display:none">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="Ground Coffee Received from the Roastery" data-en="Ground Coffee Received from the Roastery">Ground Coffee Received from the Roastery</span>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</label><input type="date" id="received_date"></div>
+        <div class="field"><label class="i18n" data-ar="رقم الدفعة" data-en="Batch Ref">رقم الدفعة</label><input type="text" id="received_batch"></div>
+        <div class="field"><label class="i18n" data-ar="الكمية المرسلة (كغ)" data-en="Sent Quantity (kg)">الكمية المرسلة (كغ)</label><input type="number" step="0.01" id="received_sentQty"></div>
+        <div class="field"><label class="i18n" data-ar="الكمية المستلمة (كغ)" data-en="Received Quantity (kg)">الكمية المستلمة (كغ)</label><input type="number" step="0.01" id="received_recvQty"></div>
+        <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="received_notes" rows="2"></textarea></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('received')">
+        <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
+      </button>
+      <div class="alert" id="alert-received"></div>
+    </div>
+
+    <!-- ===== FORM 4: Packing ===== -->
+    <div class="card tab-panel" id="panel-packing" style="display:none">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="Coffee Under Processing (Packing)" data-en="Coffee Under Processing (Packing)">Coffee Under Processing (Packing)</span>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</label><input type="date" id="packing_date"></div>
+        <div class="field"><label class="i18n" data-ar="رقم الدفعة" data-en="Batch Ref">رقم الدفعة</label><input type="text" id="packing_batch"></div>
+        <div class="field"><label class="i18n" data-ar="الكمية الداخلة (كغ)" data-en="Input Quantity (kg)">الكمية الداخلة (كغ)</label><input type="number" step="0.01" id="packing_input"></div>
+        <div class="field"><label class="i18n" data-ar="عدد الأكياس المنتجة (200غ)" data-en="Bags Produced (200g)">عدد الأكياس المنتجة (200غ)</label><input type="number" step="1" id="packing_bags"></div>
+        <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="packing_notes" rows="2"></textarea></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('packing')">
+        <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
+      </button>
+      <div class="alert" id="alert-packing"></div>
+    </div>
+
+    <!-- ===== FORM 5: Finished Product ===== -->
+    <div class="card tab-panel" id="panel-finished" style="display:none">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="Ready-Made Packed Coffee" data-en="Ready-Made Packed Coffee">Ready-Made Packed Coffee</span>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</label><input type="date" id="finished_date"></div>
+        <div class="field"><label class="i18n" data-ar="رقم الدفعة" data-en="Batch Ref">رقم الدفعة</label><input type="text" id="finished_batch"></div>
+        <div class="field"><label class="i18n" data-ar="عدد الأكياس" data-en="Bags Added">عدد الأكياس</label><input type="number" step="1" id="finished_bags"></div>
+        <div class="field"><label class="i18n" data-ar="اسم المنتج" data-en="Product Name">اسم المنتج</label><input type="text" id="finished_productName" placeholder="Ready-Made Packed Coffee"></div>
+        <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="finished_notes" rows="2"></textarea></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('finished')">
+        <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
+      </button>
+      <div class="alert" id="alert-finished"></div>
+    </div>
+  </div>
+
+  <script>
+    let TOKEN = null;
+    let COFFEE_TYPES = [];
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init(){
+      TOKEN = sessionStorage.getItem('token');
+      const role = sessionStorage.getItem('role');
+      if(!TOKEN){ window.top.location.href = getBaseUrl_(); return; }
+      if(role !== 'Admin' && role !== 'DataEntry'){
+        window.top.location.href = getBaseUrl_() + '?page=reports';
+        return;
+      }
+      document.getElementById('userPill').textContent = sessionStorage.getItem('fullName') + ' · ' + role;
+      if(role === 'Admin') document.getElementById('reportsNavBtn').style.display = 'inline-flex';
+
+      setDefaultDates_();
+      loadBalances();
+    }
+
+    function getBaseUrl_(){ return window.location.href.split('?')[0]; }
+    function goReports(){ window.top.location.href = getBaseUrl_() + '?page=reports'; }
+    function doLogout(){
+      google.script.run.logout(TOKEN);
+      sessionStorage.clear();
+      window.top.location.href = getBaseUrl_();
+    }
+
+    function setDefaultDates_(){
+      const today = new Date().toISOString().slice(0,10);
+      ['raw_date','sent_date','received_date','packing_date','finished_date'].forEach(id => {
+        document.getElementById(id).value = today;
+      });
+    }
+
+    function showTab(name){
+      document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('panel-' + name).style.display = 'block';
+      document.querySelector('.tab-btn[data-tab="' + name + '"]').classList.add('active');
+    }
+
+    function setLang(lang){
+      document.body.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+      document.getElementById('btn-ar').classList.toggle('active', lang === 'ar');
+      document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+      document.querySelectorAll('.i18n').forEach(el => { el.textContent = el.getAttribute('data-' + lang); });
+    }
+
+    function loadBalances(){
+      google.script.run
+        .withSuccessHandler(function(bal){
+          COFFEE_TYPES = bal.coffeeTypes;
+          populateCoffeeSelects_();
+          renderKpis_(bal);
+        })
+        .withFailureHandler(handleSessionError_)
+        .getCurrentBalances(TOKEN);
+    }
+
+    function populateCoffeeSelects_(){
+      ['raw_coffeeType','sent_coffeeType'].forEach(id => {
+        const sel = document.getElementById(id);
+        sel.innerHTML = '';
+        COFFEE_TYPES.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t; opt.textContent = t;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    function renderKpis_(bal){
+      const grid = document.getElementById('kpiGrid');
+      const lang = document.body.dir === 'rtl' ? 'ar' : 'en';
+      const items = [
+        { labelAr: 'رصيد ' + COFFEE_TYPES[0] + ' (كغ)', labelEn: COFFEE_TYPES[0] + ' Stock (kg)', value: bal.rawStock[COFFEE_TYPES[0]] },
+        { labelAr: 'رصيد ' + COFFEE_TYPES[1] + ' (كغ)', labelEn: COFFEE_TYPES[1] + ' Stock (kg)', value: bal.rawStock[COFFEE_TYPES[1]] },
+        { labelAr: 'قهوة محمصة متوفرة (كغ)', labelEn: 'Roasted Coffee Available (kg)', value: bal.roastedStock },
+        { labelAr: 'أكياس تحت التعبئة', labelEn: 'Bags in Packing', value: bal.packingInProgressBags },
+        { labelAr: 'إجمالي المنتج النهائي (كيس)', labelEn: 'Total Finished Bags', value: bal.finishedBags }
+      ];
+      grid.innerHTML = items.map(i => `
+        <div class="kpi">
+          <div class="kpi-label">${lang === 'ar' ? i.labelAr : i.labelEn}</div>
+          <div class="kpi-value">${i.value}</div>
+        </div>
+      `).join('');
+    }
+
+    function handleSessionError_(err){
+      alert(err.message || String(err));
+      sessionStorage.clear();
+      window.top.location.href = getBaseUrl_();
+    }
+
+    function showAlert_(panel, msg, type){
+      const box = document.getElementById('alert-' + panel);
+      box.textContent = msg;
+      box.className = 'alert show alert-' + type;
+    }
+
+    function submitForm(panel){
+      const fnMap = {
+        raw: { fn: 'submitRawReceived', data: {
+          date: v_('raw_date'), coffeeType: v_('raw_coffeeType'), quantityKg: v_('raw_qty'),
+          supplier: v_('raw_supplier'), notes: v_('raw_notes')
+        }},
+        sent: { fn: 'submitSentToRoastery', data: {
+          date: v_('sent_date'), coffeeType: v_('sent_coffeeType'), quantityKg: v_('sent_qty'),
+          batchRef: v_('sent_batch'), notes: v_('sent_notes')
+        }},
+        received: { fn: 'submitReceivedFromRoastery', data: {
+          date: v_('received_date'), batchRef: v_('received_batch'),
+          sentQuantityKg: v_('received_sentQty'), receivedQuantityKg: v_('received_recvQty'), notes: v_('received_notes')
+        }},
+        packing: { fn: 'submitPackingProcess', data: {
+          date: v_('packing_date'), batchRef: v_('packing_batch'),
+          inputQuantityKg: v_('packing_input'), bagsProduced: v_('packing_bags'), notes: v_('packing_notes')
+        }},
+        finished: { fn: 'submitFinishedProduct', data: {
+          date: v_('finished_date'), batchRef: v_('finished_batch'),
+          bagsAdded: v_('finished_bags'), productName: v_('finished_productName'), notes: v_('finished_notes')
+        }}
+      };
+      const cfg = fnMap[panel];
+      google.script.run
+        .withSuccessHandler(function(res){
+          showAlert_(panel, res.message, 'success');
+          clearPanelInputs_(panel);
+          loadBalances();
+        })
+        .withFailureHandler(function(err){
+          showAlert_(panel, err.message || String(err), 'error');
+        })
+        [cfg.fn](TOKEN, cfg.data);
+    }
+
+    function v_(id){ return document.getElementById(id).value; }
+
+    function clearPanelInputs_(panel){
+      const panelEl = document.getElementById('panel-' + panel);
+      panelEl.querySelectorAll('input[type="number"], input[type="text"], textarea').forEach(el => el.value = '');
+      setDefaultDates_();
+    }
+  </script>
+</body>
+</html>

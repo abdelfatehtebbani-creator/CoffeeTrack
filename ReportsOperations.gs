@@ -104,11 +104,8 @@ function reportFinishedProducts(token) {
 /** Convenience: loads all 6 reports in a single call (used on Reports.html page load). */
 function getAllReports(token) {
   requireRole_(token, reportRoles_());
-  // NOTE: لو حدث أي خطأ غير متوقع هنا ولم نلتقطه، فقد يصل للعميل كـ "null" بصمت
-  // (Apps Script يحوّل استجابات JSON غير الصالحة إلى null بدل رمي خطأ واضح).
-  // لذلك نغلّف كل شيء بـ try/catch ونرمي خطأ نصياً واضحاً بدلاً من ذلك.
   try {
-    return {
+    const result = {
       rawReceived: reportRawReceivedByType(token),
       sentToRoastery: reportSentToRoastery(token),
       receivedFromRoastery: reportReceivedFromRoastery(token),
@@ -116,9 +113,51 @@ function getAllReports(token) {
       packingInProgress: reportPackingInProgress(token),
       finishedProducts: reportFinishedProducts(token)
     };
+
+    // فحص دفاعي حاسم: جسر google.script.run يحوّل الاستجابة بالكامل إلى `null`
+    // بصمت تام (بدون أي رسالة خطأ) إن وُجدت قيمة واحدة فقط غير قابلة للتمثيل في
+    // JSON في أي مكان بالكائن (NaN, Infinity, -Infinity, undefined) - بغض النظر
+    // عن عمقها. بدل ترك المستخدم يخمّن مكان الخلل، نفحص الكائن بالكامل هنا
+    // ونرمي خطأ صريحاً يحدد المكان بالضبط (اسم الحقل ورقم الصف).
+    const badPath = findUnserializableValue_(result, 'result');
+    if (badPath) {
+      throw new Error(
+        'قيمة غير صالحة في البيانات عند: ' + badPath + ' — افتح الشيت المعني وتحقق من هذه الخلية تحديداً (قد تكون فارغة أو تحتوي رمزاً غير متوقع). / ' +
+        'Invalid value found at: ' + badPath + ' — open the relevant sheet and check that exact cell (it may be blank or contain an unexpected character).'
+      );
+    }
+
+    return result;
   } catch (err) {
     throw new Error('فشل تحميل التقارير: ' + err.message + ' / Failed to load reports: ' + err.message);
   }
+}
+
+/**
+ * يفحص كائناً بالكامل (بعمق) بحثاً عن أول قيمة غير قابلة للتمثيل في JSON.
+ * يُرجع مساراً نصياً يصف مكانها بالضبط (مثال: "result.receivedFromRoastery.rows[2].wasteKg")
+ * أو null إن كان الكائن سليماً بالكامل.
+ */
+function findUnserializableValue_(value, path) {
+  if (typeof value === 'number' && !isFinite(value)) return path + ' (= ' + value + ')';
+  if (value === undefined) return path + ' (= undefined)';
+  if (typeof value === 'function') return path + ' (= function)';
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const bad = findUnserializableValue_(value[i], path + '[' + i + ']');
+      if (bad) return bad;
+    }
+    return null;
+  }
+  if (value !== null && typeof value === 'object' && !(value instanceof Date)) {
+    const keys = Object.keys(value);
+    for (let i = 0; i < keys.length; i++) {
+      const bad = findUnserializableValue_(value[keys[i]], path + '.' + keys[i]);
+      if (bad) return bad;
+    }
+    return null;
+  }
+  return null;
 }
 
 // ===== small aggregation helpers =====

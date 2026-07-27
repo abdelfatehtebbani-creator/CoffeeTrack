@@ -16,7 +16,7 @@
 //                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ هذا هو الـ ID
 // اترك '' فارغاً فقط إذا كان المشروع مرتبطاً مباشرة بالشيت
 // (Container-bound: أنشأته من داخل الشيت عبر Extensions > Apps Script).
-const SPREADSHEET_ID = '1mwRfPsZXXEvrkBDCiPafiG7bqfAdKJL6ff4orW-7XSc';
+const SPREADSHEET_ID = 'PASTE_YOUR_SPREADSHEET_ID_HERE';
 
 // ===== Sheet names (single source of truth) =====
 const SHEETS = {

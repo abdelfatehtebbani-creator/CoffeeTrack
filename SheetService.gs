@@ -97,14 +97,14 @@ function getConfigMap_() {
 function sumRawReceived_(coffeeType) {
   return readSheetAsObjects_(SHEETS.RAW_RECEIVED)
     .filter(r => !coffeeType || r.CoffeeType === coffeeType)
-    .reduce((s, r) => s + Number(r.QuantityKg || 0), 0);
+    .reduce((s, r) => s + (Number(r.QuantityKg) || 0), 0);
 }
 
 /** Total kg already sent to the roastery, optionally filtered by CoffeeType. */
 function sumSentToRoastery_(coffeeType) {
   return readSheetAsObjects_(SHEETS.SENT_ROASTERY)
     .filter(r => !coffeeType || r.CoffeeType === coffeeType)
-    .reduce((s, r) => s + Number(r.QuantityKg || 0), 0);
+    .reduce((s, r) => s + (Number(r.QuantityKg) || 0), 0);
 }
 
 /** Raw beans available in warehouse, not yet sent to roastery (per type). */
@@ -115,13 +115,13 @@ function getRawStockBalance_(coffeeType) {
 /** Total kg received back from roastery (ground/roasted). */
 function sumReceivedFromRoastery_() {
   return readSheetAsObjects_(SHEETS.RECEIVED_ROASTERY)
-    .reduce((s, r) => s + Number(r.ReceivedQuantityKg || 0), 0);
+    .reduce((s, r) => s + (Number(r.ReceivedQuantityKg) || 0), 0);
 }
 
 /** Total kg already "reconciled" (accounted for) via Received rows' SentQuantityKg field. */
 function sumReceivedFromRoasterySentField_() {
   return readSheetAsObjects_(SHEETS.RECEIVED_ROASTERY)
-    .reduce((s, r) => s + Number(r.SentQuantityKg || 0), 0);
+    .reduce((s, r) => s + (Number(r.SentQuantityKg) || 0), 0);
 }
 
 /**
@@ -137,7 +137,7 @@ function getAtRoasteryBalance_() {
 /** Total kg sent into packing (input side). */
 function sumPackingInput_() {
   return readSheetAsObjects_(SHEETS.PACKING)
-    .reduce((s, r) => s + Number(r.InputQuantityKg || 0), 0);
+    .reduce((s, r) => s + (Number(r.InputQuantityKg) || 0), 0);
 }
 
 /** Roasted & ground coffee available in stock (not yet sent to packing). */
@@ -148,13 +148,13 @@ function getRoastedStockBalance_() {
 /** Total bags produced by the packing stage (moved to finished-goods stock). */
 function sumBagsProduced_() {
   return readSheetAsObjects_(SHEETS.PACKING)
-    .reduce((s, r) => s + Number(r.BagsProduced || 0), 0);
+    .reduce((s, r) => s + (Number(r.BagsProduced) || 0), 0);
 }
 
 /** Total bags already registered as finished product. */
 function sumBagsFinished_() {
   return readSheetAsObjects_(SHEETS.FINISHED)
-    .reduce((s, r) => s + Number(r.BagsAdded || 0), 0);
+    .reduce((s, r) => s + (Number(r.BagsAdded) || 0), 0);
 }
 
 /** Bags produced by packing but not yet confirmed as finished product ("نصف جاهزة"). */

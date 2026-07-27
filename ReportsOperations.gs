@@ -104,25 +104,32 @@ function reportFinishedProducts(token) {
 /** Convenience: loads all 6 reports in a single call (used on Reports.html page load). */
 function getAllReports(token) {
   requireRole_(token, reportRoles_());
-  return {
-    rawReceived: reportRawReceivedByType(token),
-    sentToRoastery: reportSentToRoastery(token),
-    receivedFromRoastery: reportReceivedFromRoastery(token),
-    roastedAvailable: reportRoastedAvailable(token),
-    packingInProgress: reportPackingInProgress(token),
-    finishedProducts: reportFinishedProducts(token)
-  };
+  // NOTE: لو حدث أي خطأ غير متوقع هنا ولم نلتقطه، فقد يصل للعميل كـ "null" بصمت
+  // (Apps Script يحوّل استجابات JSON غير الصالحة إلى null بدل رمي خطأ واضح).
+  // لذلك نغلّف كل شيء بـ try/catch ونرمي خطأ نصياً واضحاً بدلاً من ذلك.
+  try {
+    return {
+      rawReceived: reportRawReceivedByType(token),
+      sentToRoastery: reportSentToRoastery(token),
+      receivedFromRoastery: reportReceivedFromRoastery(token),
+      roastedAvailable: reportRoastedAvailable(token),
+      packingInProgress: reportPackingInProgress(token),
+      finishedProducts: reportFinishedProducts(token)
+    };
+  } catch (err) {
+    throw new Error('فشل تحميل التقارير: ' + err.message + ' / Failed to load reports: ' + err.message);
+  }
 }
 
 // ===== small aggregation helpers =====
 function sumField_(rows, field) {
-  return Math.round(rows.reduce((s, r) => s + Number(r[field] || 0), 0) * 1000) / 1000;
+  return Math.round(rows.reduce((s, r) => s + (Number(r[field]) || 0), 0) * 1000) / 1000;
 }
 function groupSum_(rows, groupField, sumFieldName) {
   const map = {};
   rows.forEach(r => {
     const key = r[groupField] || 'Unknown';
-    map[key] = (map[key] || 0) + Number(r[sumFieldName] || 0);
+    map[key] = (map[key] || 0) + (Number(r[sumFieldName]) || 0);
   });
   Object.keys(map).forEach(k => map[k] = Math.round(map[k] * 1000) / 1000);
   return map;

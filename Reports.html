@@ -203,6 +203,16 @@
     }
 
     function renderAll_(data){
+      // حماية دفاعية: لو وصلت بيانات فارغة/تالفة لأي سبب (مثال سابق: NaN
+      // في أحد الأعمدة كسر تحويل JSON بالكامل)، نعرض رسالة واضحة بدل انهيار
+      // الصفحة بصمت على "جاري التحميل...".
+      if(!data || !data.rawReceived){
+        document.getElementById('loadingMsg').textContent =
+          LANG === 'ar'
+            ? 'تعذّر تحميل التقارير. تحقق من عدم وجود نص غير رقمي بالخطأ في أعمدة الكميات بالشيت، ثم اضغط تحديث.'
+            : 'Failed to load reports. Check for non-numeric text accidentally in quantity columns, then click Refresh.';
+        return;
+      }
       // ----- 1 -----
       document.getElementById('r1-totals').innerHTML =
         Object.keys(data.rawReceived.totalsByType).map(t => kpi_(t + ' (كغ)', t + ' (kg)', data.rawReceived.totalsByType[t])).join('')

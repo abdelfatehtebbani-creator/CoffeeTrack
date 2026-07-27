@@ -72,6 +72,8 @@ Apps Script يدمج كل ملفات `.gs` في نطاق عام واحد، لك�
 - `getSS_()` في `SheetService.gs` هو **المكان الوحيد** الذي يقرر أي Spreadsheet يُستخدم. لا تستدعِ `SpreadsheetApp.getActiveSpreadsheet()` أو `SpreadsheetApp.openById()` من أي ملف آخر — استخدم `getSS_()` دائماً.
 - `SPREADSHEET_ID` في `Setup.gs` هو مصدر الحقيقة الوحيد لمعرّف الشيت. لا تُثبّت (hardcode) معرّف شيت في أي مكان آخر بالكود.
 - عند تشغيل `initializeSpreadsheet()` أول مرة على مشروع clasp مستقل بدون تعيين `SPREADSHEET_ID`، ستحصل على خطأ واضح ثنائي اللغة بدل فشل صامت — حافظ على هذا السلوك (fail loudly) عند أي تعديل مستقبلي على `getSS_()`.
+- ⚠️ **لا تستبدل أبداً القيمة الحالية لـ `SPREADSHEET_ID` بالقيمة الافتراضية `'PASTE_YOUR_SPREADSHEET_ID_HERE'` عند تسليم/دمج أي تحديث مستقبلي على `Setup.gs`.** حدث هذا فعلاً كخطأ حقيقي في هذا المشروع (Sheet not found بسبب رجوع القيمة للافتراضي بعد تحديث)، وسبَّب فشل كل التقارير. مشروع هذا المستخدم تحديداً يستخدم شيت بيانات (Database) **منفصل** عن الشيت الذي يستضيف مشروع Apps Script نفسه (Container-bound) — هذا إعداد سليم ومقصود، وليس خطأ يجب "تصحيحه".
+- القيمة الحالية الصحيحة لهذا المشروع: `1mwRfPsZXXEvrkBDCiPafiG7bqfAdKJL6ff4orW-7XSc` (شيت "CoffeeTrack Database"). أي تعديل مستقبلي على `Setup.gs` يجب أن يُبقي هذا السطر كما هو ما لم يطلب المستخدم صراحة تغييره.
 
 ## 8.2) رابط /exec الحقيقي — لا تعتمد أبداً على window.location في العميل
 واجهة Apps Script HTML Service تُعرض للمستخدم داخل **إطار معزول (sandboxed iframe)** على نطاق `googleusercontent.com`، مختلف تماماً عن نطاق `/exec` الظاهر في شريط العنوان. النتيجة:

@@ -214,7 +214,8 @@
       // ----- 2 -----
       document.getElementById('r2-totals').innerHTML =
         Object.keys(data.sentToRoastery.totalsByType).map(t => kpi_(t + ' (كغ)', t + ' (kg)', data.sentToRoastery.totalsByType[t])).join('')
-        + kpi_('الإجمالي (كغ)', 'Grand Total (kg)', data.sentToRoastery.grandTotalKg);
+        + kpi_('الإجمالي (كغ)', 'Grand Total (kg)', data.sentToRoastery.grandTotalKg)
+        + kpi_('عند المحمصة الآن (كغ)', 'Currently At Roastery (kg)', data.sentToRoastery.atRoasteryKg);
       document.getElementById('r2-body').innerHTML = data.sentToRoastery.rows.map(r => `
         <tr><td>${fmtDate_(r.date)}</td><td>${r.coffeeType}</td><td>${r.quantityKg}</td><td>${r.batchRef||''}</td><td>${r.enteredBy}</td></tr>
       `).join('') || emptyRow_(5);

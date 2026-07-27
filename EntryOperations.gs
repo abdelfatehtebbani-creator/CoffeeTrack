@@ -74,6 +74,19 @@ function submitReceivedFromRoastery(token, data) {
 
   const sent = Number(data.sentQuantityKg);
   const received = Number(data.receivedQuantityKg);
+
+  // تحقق صارم جديد: لا يمكن "تسوية" (مطابقة) كمية أكبر من المتبقي فعلياً عند
+  // المحمصة - هذا يمنع الخطأ الشائع عند تجزيء/دمج الدفعات (راجع docs/Database.md).
+  const atRoastery = getAtRoasteryBalance_();
+  if (sent > atRoastery) {
+    throw new Error(
+      'الكمية المرسلة المُدخلة أكبر من الكمية المتبقية فعلياً عند المحمصة (' + atRoastery.toFixed(2) + ' كغ). ' +
+      'إذا كانت المحمصة أرجعت هذه الدفعة على أجزاء، أدخل فقط الجزء الذي يخص هذا الاستلام. / ' +
+      'Entered sent quantity exceeds what is actually outstanding at the roastery (' + atRoastery.toFixed(2) + ' kg). ' +
+      'If the roastery is returning this in installments, enter only the portion for this receipt.'
+    );
+  }
+
   if (received > sent) {
     throw new Error('الكمية المستلمة لا يمكن أن تكون أكبر من الكمية المرسلة / Received quantity cannot exceed sent quantity');
   }
@@ -198,6 +211,7 @@ function getCurrentBalances(token) {
       [type1]: Math.round(getRawStockBalance_(type1) * 1000) / 1000,
       [type2]: Math.round(getRawStockBalance_(type2) * 1000) / 1000
     },
+    atRoasteryKg: Math.round(getAtRoasteryBalance_() * 1000) / 1000,
     roastedStock: Math.round(getRoastedStockBalance_() * 1000) / 1000,
     packingInProgressBags: getPackingInProgressBags_(),
     finishedBags: sumBagsFinished_(),

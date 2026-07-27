@@ -118,6 +118,22 @@ function sumReceivedFromRoastery_() {
     .reduce((s, r) => s + Number(r.ReceivedQuantityKg || 0), 0);
 }
 
+/** Total kg already "reconciled" (accounted for) via Received rows' SentQuantityKg field. */
+function sumReceivedFromRoasterySentField_() {
+  return readSheetAsObjects_(SHEETS.RECEIVED_ROASTERY)
+    .reduce((s, r) => s + Number(r.SentQuantityKg || 0), 0);
+}
+
+/**
+ * الكمية الخام التي أُرسلت للتحميص ولم يُسجَّل استلامها بعد ("عند المحمصة حالياً").
+ * = إجمالي ما أُرسل - إجمالي ما تمّت مطابقته (تسويته) عبر صفوف الاستلام حتى الآن.
+ * هذا هو الرصيد الذي يجب أن يُقارَن به SentQuantityKg عند كل عملية استلام جديدة،
+ * بغض النظر عن كون المحمصة تُرجع الكمية دفعة واحدة، مجزّأة، أو مخلوطة من عدة إرسالات.
+ */
+function getAtRoasteryBalance_() {
+  return sumSentToRoastery_() - sumReceivedFromRoasterySentField_();
+}
+
 /** Total kg sent into packing (input side). */
 function sumPackingInput_() {
   return readSheetAsObjects_(SHEETS.PACKING)

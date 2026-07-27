@@ -98,6 +98,7 @@
       <div class="card-title"><span class="dot"></span>
         <span class="i18n" data-ar="Ground Coffee Received from the Roastery" data-en="Ground Coffee Received from the Roastery">Ground Coffee Received from the Roastery</span>
       </div>
+      <p class="i18n" style="font-size:12.5px;color:var(--text-muted);margin:-8px 0 16px" data-ar="أدخل هنا فقط الجزء الذي تستلمه في هذه الدفعة تحديداً (وليس بالضرورة كامل ما أُرسل دفعة واحدة) — راجع بطاقة 'عند المحمصة الآن' أعلى الصفحة لمعرفة الحد الأقصى المتاح." data-en="Enter only the portion received in this specific delivery (not necessarily the full original sent amount) — check the 'Currently At Roastery' card above for the maximum available.">أدخل هنا فقط الجزء الذي تستلمه في هذه الدفعة تحديداً (وليس بالضرورة كامل ما أُرسل دفعة واحدة) — راجع بطاقة "عند المحمصة الآن" أعلى الصفحة لمعرفة الحد الأقصى المتاح.</p>
       <div class="form-grid">
         <div class="field"><label class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</label><input type="date" id="received_date"></div>
         <div class="field"><label class="i18n" data-ar="رقم الدفعة" data-en="Batch Ref">رقم الدفعة</label><input type="text" id="received_batch"></div>
@@ -230,6 +231,7 @@
       const items = [
         { labelAr: 'رصيد ' + COFFEE_TYPES[0] + ' (كغ)', labelEn: COFFEE_TYPES[0] + ' Stock (kg)', value: bal.rawStock[COFFEE_TYPES[0]] },
         { labelAr: 'رصيد ' + COFFEE_TYPES[1] + ' (كغ)', labelEn: COFFEE_TYPES[1] + ' Stock (kg)', value: bal.rawStock[COFFEE_TYPES[1]] },
+        { labelAr: 'عند المحمصة الآن (كغ)', labelEn: 'Currently At Roastery (kg)', value: bal.atRoasteryKg },
         { labelAr: 'قهوة محمصة متوفرة (كغ)', labelEn: 'Roasted Coffee Available (kg)', value: bal.roastedStock },
         { labelAr: 'أكياس تحت التعبئة', labelEn: 'Bags in Packing', value: bal.packingInProgressBags },
         { labelAr: 'إجمالي المنتج النهائي (كيس)', labelEn: 'Total Finished Bags', value: bal.finishedBags }

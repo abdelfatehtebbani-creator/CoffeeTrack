@@ -31,7 +31,8 @@ function reportSentToRoastery(token) {
   return {
     rows: rows.map(r => ({ date: r.Date, coffeeType: r.CoffeeType, quantityKg: r.QuantityKg, batchRef: r.BatchRef, enteredBy: r.EnteredBy })),
     totalsByType: groupSum_(rows, 'CoffeeType', 'QuantityKg'),
-    grandTotalKg: sumField_(rows, 'QuantityKg')
+    grandTotalKg: sumField_(rows, 'QuantityKg'),
+    atRoasteryKg: Math.round(getAtRoasteryBalance_() * 1000) / 1000
   };
 }
 

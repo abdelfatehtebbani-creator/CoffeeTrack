@@ -42,11 +42,12 @@
 - **يُستدعى من**: `Entry.html` → تبويب "إرسال للتحميص".
 
 ### `submitReceivedFromRoastery(token, data)`
-- **الغرض**: تسجيل استلام القهوة المطحونة/المحمصة من التحميص، مع حساب هدر تلقائي.
+- **الغرض**: تسجيل استلام القهوة المطحونة/المحمصة من التحميص (كلياً أو جزئياً)، مع حساب هدر تلقائي.
 - **Parameters**: `data = {date, batchRef?, sentQuantityKg, receivedQuantityKg, notes?}`.
 - **Return**: `{success: true, id, wasteKg, wastePercent, message}`.
-- **الأخطاء**: حقول مفقودة، كميات غير موجبة، **"الكمية المستلمة أكبر من المرسلة"**.
+- **الأخطاء**: حقول مفقودة، كميات غير موجبة، **"الكمية المستلمة أكبر من المرسلة"**، **"الكمية المرسلة المُدخلة أكبر من المتبقي فعلياً عند المحمصة"** (`sentQuantityKg` يُقارَن بـ `getAtRoasteryBalance_()` — راجع docs/Database.md لشرح مفهوم "عند المحمصة الآن" ولماذا `sentQuantityKg` هنا لا يُقرأ تلقائياً من شيت `Sent_to_Roastery`).
 - **يُستدعى من**: `Entry.html` → تبويب "استلام من التحميص".
+- **ملاحظة مهمة**: `sentQuantityKg` هنا يمثّل "الجزء من الحبوب الخام الذي يقابل هذا الاستلام تحديداً"، وليس بالضرورة كمية عملية إرسال واحدة. يدعم هذا تجزئة المحمصة للدفعة العائدة (عدة صفوف استلام لإرسال واحد) ودمجها (صف استلام واحد يقابل عدة إرسالات مخلوطة)، طالما بقي المجموع الكلي متوافقاً مع رصيد "عند المحمصة".
 
 ### `submitPackingProcess(token, data)`
 - **الغرض**: تسجيل تحويل قهوة محمصة (كغ) إلى أكياس 200غ، مع حساب هدر التعبئة.
@@ -66,7 +67,7 @@
 ### `getCurrentBalances(token)`
 - **الغرض**: تزويد لوحة المؤشرات (KPI) في صفحة الإدخال بالأرصدة اللحظية.
 - **Parameters**: `token` فقط.
-- **Return**: `{rawStock: {type1: n, type2: n}, roastedStock: n, packingInProgressBags: n, finishedBags: n, coffeeTypes: [type1, type2]}`.
+- **Return**: `{rawStock: {type1: n, type2: n}, atRoasteryKg: n, roastedStock: n, packingInProgressBags: n, finishedBags: n, coffeeTypes: [type1, type2]}`.
 - **الأخطاء**: جلسة غير صالحة فقط (أي دور مسجَّل دخول يمكنه قراءتها، تُستخدم أيضاً لملء قوائم الأصناف المنسدلة).
 - **يُستدعى من**: `Entry.html` → `loadBalances()` عند تحميل الصفحة وبعد كل عملية حفظ ناجحة.
 

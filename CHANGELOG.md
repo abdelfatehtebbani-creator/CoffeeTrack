@@ -33,6 +33,9 @@
 ### Changed
 - لا يوجد (إصدار أول).
 
+### Added
+- **تحقق جديد: "الرصيد عند المحمصة"** (`getAtRoasteryBalance_` في `SheetService.gs`) — يمنع الآن إدخال `Sent Quantity (kg)` في نموذج "استلام من التحميص" بقيمة أكبر من الكمية المتبقية فعلياً عند المحمصة (المرسلة ولم تُسوَّ بعد عبر أي استلام سابق). يدعم هذا بشكل صحيح حالات تجزئة الدفعة العائدة على عدة استلامات، أو دمج عدة إرسالات في استلام واحد مخلوط. يظهر هذا الرصيد كمؤشر KPI حي في صفحة الإدخال ("عند المحمصة الآن") وفي تقرير "الكميات المرسلة للتحميص". راجع `docs/Database.md` (قسم "مفهوم عند المحمصة الآن") للشرح الكامل مع الأمثلة.
+
 ### Fixed
 - **صفحة بيضاء فارغة بعد تسجيل الدخول (blank white page)**: كانت كل الصفحات تبني رابط التنقّل بين الصفحات (`getBaseUrl_()`) من `window.location.href` في طرف العميل. لكن Apps Script HTML Service يعرض المحتوى داخل إطار معزول (iframe) على نطاق `googleusercontent.com` مختلف عن رابط `/exec` الحقيقي، فكان `window.location.href` يعطي رابط الإطار الداخلي، والتنقّل إليه مباشرة (`window.top.location.href = ...`) يفتح صفحة فارغة بدون سياق تنفيذ صحيح. **الحل**: `Code.gs` يحقن الرابط الحقيقي عبر `ScriptApp.getService().getUrl()` في متغيّر `baseUrl` يُقرأ داخل كل صفحة كـ `const BASE_URL = '<?!= baseUrl ?>';`. طُبِّق على `Login.html`, `Entry.html`, `Reports.html`. راجع `CLAUDE.md` §8.2 للتفاصيل الكاملة وقاعدة عدم تكرار هذا الخطأ مستقبلاً.
 - **`SPREADSHEET_ID` مفقود لمشاريع clasp المستقلة**: أُضيف ثابت `SPREADSHEET_ID` في `Setup.gs` + منطق في `getSS_()` (`SheetService.gs`) يستخدم `SpreadsheetApp.openById(SPREADSHEET_ID)` إن كان محدَّداً، ويعود تلقائياً لـ `getActiveSpreadsheet()` فقط إذا كان المشروع Container-bound. السبب: `SpreadsheetApp.getActiveSpreadsheet()` يعمل فقط إن كان المشروع مرتبطاً مباشرة بشيت من داخله؛ مشاريع `clasp create` المستقلة تحتاج تحديد الـ ID صراحة، وإلا يفشل الكود بصمت أو بخطأ غامض. راجع README (قسم "ربط المشروع") لخطوات إيجاد الـ ID ووضعه.

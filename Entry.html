@@ -67,7 +67,7 @@
         <div class="field"><label class="i18n" data-ar="المورد" data-en="Supplier">المورد</label><input type="text" id="raw_supplier"></div>
         <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="raw_notes" rows="2"></textarea></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('raw')">
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('raw', this)">
         <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
       </button>
       <div class="alert" id="alert-raw"></div>
@@ -87,7 +87,7 @@
         <div class="field"><label class="i18n" data-ar="رقم الدفعة" data-en="Batch Ref">رقم الدفعة</label><input type="text" id="sent_batch"></div>
         <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="sent_notes" rows="2"></textarea></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('sent')">
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('sent', this)">
         <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
       </button>
       <div class="alert" id="alert-sent"></div>
@@ -106,7 +106,7 @@
         <div class="field"><label class="i18n" data-ar="الكمية المستلمة (كغ)" data-en="Received Quantity (kg)">الكمية المستلمة (كغ)</label><input type="number" step="0.01" id="received_recvQty"></div>
         <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="received_notes" rows="2"></textarea></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('received')">
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('received', this)">
         <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
       </button>
       <div class="alert" id="alert-received"></div>
@@ -124,7 +124,7 @@
         <div class="field"><label class="i18n" data-ar="عدد الأكياس المنتجة (200غ)" data-en="Bags Produced (200g)">عدد الأكياس المنتجة (200غ)</label><input type="number" step="1" id="packing_bags"></div>
         <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="packing_notes" rows="2"></textarea></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('packing')">
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('packing', this)">
         <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
       </button>
       <div class="alert" id="alert-packing"></div>
@@ -142,7 +142,7 @@
         <div class="field"><label class="i18n" data-ar="اسم المنتج" data-en="Product Name">اسم المنتج</label><input type="text" id="finished_productName" placeholder="Ready-Made Packed Coffee"></div>
         <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="finished_notes" rows="2"></textarea></div>
       </div>
-      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('finished')">
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('finished', this)">
         <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
       </button>
       <div class="alert" id="alert-finished"></div>
@@ -261,7 +261,18 @@
       box.className = 'alert show alert-' + type;
     }
 
-    function submitForm(panel){
+    function submitForm(panel, btnEl){
+      // منع النقر المزدوج (خصوصاً على الهاتف): نعطّل الزر فور الضغط، ونعيد
+      // تفعيله بعد استلام الرد (نجاحاً أو فشلاً). هذا طبقة وقاية إضافية في
+      // العميل، إلى جانب القفل الحقيقي على الخادم (withLock_ في EntryOperations.gs)
+      // الذي يمنع التزامن فعلياً حتى لو نجحت نقرة مزدوجة في الإفلات من هذا المنع.
+      if(btnEl && btnEl.disabled) return;
+      const originalHtml = btnEl ? btnEl.innerHTML : null;
+      if(btnEl){
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<span class="spin"></span>';
+      }
+
       const fnMap = {
         raw: { fn: 'submitRawReceived', data: {
           date: v_('raw_date'), coffeeType: v_('raw_coffeeType'), quantityKg: v_('raw_qty'),
@@ -287,11 +298,13 @@
       const cfg = fnMap[panel];
       google.script.run
         .withSuccessHandler(function(res){
+          if(btnEl){ btnEl.disabled = false; btnEl.innerHTML = originalHtml; }
           showAlert_(panel, res.message, 'success');
           clearPanelInputs_(panel);
           loadBalances();
         })
         .withFailureHandler(function(err){
+          if(btnEl){ btnEl.disabled = false; btnEl.innerHTML = originalHtml; }
           showAlert_(panel, err.message || String(err), 'error');
         })
         [cfg.fn](TOKEN, cfg.data);

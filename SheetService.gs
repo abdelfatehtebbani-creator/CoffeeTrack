@@ -86,6 +86,29 @@ function writeAudit_(username, action, details) {
   sheet.appendRow([new Date(), username, action, details]);
 }
 
+/**
+ * ينفّذ دالة (fn) داخل قفل حصري على مستوى المشروع كاملاً (LockService).
+ * ضروري لأي عملية من نوع "تحقق من الرصيد ثم اكتب" (check-then-write) —
+ * بدونه، طلبان متزامنان (مثال حقيقي: نقرة مزدوجة على زر الحفظ من الهاتف)
+ * قد يقرآن نفس الرصيد قبل أن يكتب أيّ منهما، فيتجاوز أحدهما التحقق رغم أن
+ * المجموع الفعلي يتجاوز المتاح. تم اكتشاف هذا الخلل فعلياً وإصلاحه هنا.
+ * إن لم يُحرَّر القفل خلال 10 ثوانٍ (ازدحام حقيقي غير متوقع)، يُرمى خطأ
+ * واضح للمستخدم بدل تعليق الطلب إلى ما لا نهاية.
+ */
+function withLock_(fn) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    throw new Error('الخادم مشغول حالياً، الرجاء المحاولة مرة أخرى بعد لحظات / Server is busy, please try again in a moment');
+  }
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /** Reads Config sheet into a simple {key: value} map. */
 function getConfigMap_() {
   const rows = readSheetAsObjects_(SHEETS.CONFIG);

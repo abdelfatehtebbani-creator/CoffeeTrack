@@ -81,6 +81,50 @@ function generateId_(sheetName) {
   return prefix + '-' + Utilities.formatString('%06d', lastRow); // lastRow before append = next seq
 }
 
+/**
+ * يحوّل قيمة تاريخ (نص ISO أو كائن Date) إلى صيغة 'yyyy-MM-dd' بتوقيت
+ * المشروع (Asia/Qatar)، لمقارنة التواريخ بشكل صحيح ومتّسق. مشتركة بين
+ * ReportsOperations.gs (فلترة نطاق زمني) وgetTodayActivity() هنا.
+ */
+function dateOnly_(dateVal) {
+  if (!dateVal) return '';
+  const d = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal).slice(0, 10);
+  return Utilities.formatDate(d, Session.getScriptTimeZone() || 'Asia/Qatar', 'yyyy-MM-dd');
+}
+
+/**
+ * ملخص "نشاط اليوم" (العمليات اليدوية المُدخَلة بتاريخ اليوم) عبر كل
+ * المراحل الخمس - يُستخدم في بطاقة أعلى صفحتي الإدخال والتقارير.
+ * متاح لأي مستخدم مسجّل دخول (كل الأدوار الثلاثة)، لذا يعيش هنا في
+ * SheetService.gs (الطبقة المشتركة) وليس في EntryOperations.gs أو
+ * ReportsOperations.gs تحديداً - تفادياً لأي استدعاء مباشر بين الملفين
+ * (راجع قاعدة الاتصال بين الخدمات في CLAUDE.md §3).
+ */
+function getTodayActivity(token) {
+  requireSession_(token);
+  const today = dateOnly_(new Date());
+
+  const todayRows_ = (sheetName) => readSheetAsObjects_(sheetName).filter(r => dateOnly_(r.Date) === today);
+  const sumOf_ = (rows, field) => Math.round(rows.reduce((s, r) => s + (Number(r[field]) || 0), 0) * 1000) / 1000;
+
+  const raw = todayRows_(SHEETS.RAW_RECEIVED);
+  const sent = todayRows_(SHEETS.SENT_ROASTERY);
+  const received = todayRows_(SHEETS.RECEIVED_ROASTERY);
+  const packing = todayRows_(SHEETS.PACKING);
+  const finished = todayRows_(SHEETS.FINISHED);
+
+  return {
+    date: today,
+    rawReceived: { count: raw.length, quantityKg: sumOf_(raw, 'QuantityKg') },
+    sentToRoastery: { count: sent.length, quantityKg: sumOf_(sent, 'QuantityKg') },
+    receivedFromRoastery: { count: received.length, quantityKg: sumOf_(received, 'ReceivedQuantityKg') },
+    packing: { count: packing.length, bagsProduced: sumOf_(packing, 'BagsProduced') },
+    finished: { count: finished.length, bagsAdded: sumOf_(finished, 'BagsAdded') },
+    totalOperations: raw.length + sent.length + received.length + packing.length + finished.length
+  };
+}
+
 function writeAudit_(username, action, details) {
   const sheet = getSheet_(SHEETS.AUDIT);
   sheet.appendRow([new Date(), username, action, details]);

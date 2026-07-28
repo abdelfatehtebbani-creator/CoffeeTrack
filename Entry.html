@@ -31,6 +31,14 @@
       </div>
     </div>
 
+    <!-- نشاط اليوم -->
+    <div class="card" id="todayActivityCard">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="نشاط اليوم" data-en="Today's Activity">نشاط اليوم</span>
+      </div>
+      <div class="kpi-grid" id="todayActivityGrid"></div>
+    </div>
+
     <!-- KPI Dashboard -->
     <div class="kpi-grid" id="kpiGrid"></div>
 
@@ -157,6 +165,7 @@
     let TOKEN = null;
     let COFFEE_TYPES = [];
     let lastBalances_ = null; // نخزّن آخر بيانات مؤشرات لإعادة رسمها عند تبديل اللغة
+    let lastTodayActivity_ = null; // نخزّن آخر بيانات نشاط اليوم لنفس السبب
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -173,6 +182,7 @@
 
       setDefaultDates_();
       loadBalances();
+      loadTodayActivity();
     }
 
     function goReports(){ window.top.location.href = BASE_URL + '?page=reports'; }
@@ -204,6 +214,7 @@
       // البطاقات الإحصائية تُبنى ديناميكياً بجافاسكربت وليست عناصر .i18n ثابتة،
       // لذا يجب إعادة رسمها يدوياً عند تبديل اللغة وإلا بقيت بلغة التحميل الأولى.
       if(lastBalances_) renderKpis_(lastBalances_);
+      if(lastTodayActivity_) renderTodayActivity_(lastTodayActivity_);
     }
 
     function loadBalances(){
@@ -216,6 +227,16 @@
         })
         .withFailureHandler(handleSessionError_)
         .getCurrentBalances(TOKEN);
+    }
+
+    function loadTodayActivity(){
+      google.script.run
+        .withSuccessHandler(function(act){
+          lastTodayActivity_ = act;
+          renderTodayActivity_(act);
+        })
+        .withFailureHandler(handleSessionError_)
+        .getTodayActivity(TOKEN);
     }
 
     function populateCoffeeSelects_(){
@@ -245,6 +266,25 @@
         <div class="kpi">
           <div class="kpi-label">${lang === 'ar' ? i.labelAr : i.labelEn}</div>
           <div class="kpi-value">${i.value}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderTodayActivity_(act){
+      const grid = document.getElementById('todayActivityGrid');
+      const lang = document.body.dir === 'rtl' ? 'ar' : 'en';
+      const items = [
+        { labelAr: 'استلام من المورد', labelEn: 'Received from Supplier', value: act.rawReceived.count + ' / ' + act.rawReceived.quantityKg + ' ' + (lang === 'ar' ? 'كغ' : 'kg') },
+        { labelAr: 'إرسال للتحميص', labelEn: 'Sent to Roastery', value: act.sentToRoastery.count + ' / ' + act.sentToRoastery.quantityKg + ' ' + (lang === 'ar' ? 'كغ' : 'kg') },
+        { labelAr: 'استلام من التحميص', labelEn: 'Received from Roastery', value: act.receivedFromRoastery.count + ' / ' + act.receivedFromRoastery.quantityKg + ' ' + (lang === 'ar' ? 'كغ' : 'kg') },
+        { labelAr: 'تعبئة (أكياس)', labelEn: 'Packing (bags)', value: act.packing.count + ' / ' + act.packing.bagsProduced },
+        { labelAr: 'منتج نهائي جاهز', labelEn: 'Finished Product', value: act.finished.count + ' / ' + act.finished.bagsAdded }
+      ];
+      grid.innerHTML = items.map(i => `
+        <div class="kpi">
+          <div class="kpi-label">${lang === 'ar' ? i.labelAr : i.labelEn}</div>
+          <div class="kpi-value">${i.value}</div>
+          <div class="kpi-sub i18n-nostatic">${lang === 'ar' ? 'عملية / كمية' : 'ops / qty'}</div>
         </div>
       `).join('');
     }
@@ -302,6 +342,7 @@
           showAlert_(panel, res.message, 'success');
           clearPanelInputs_(panel);
           loadBalances();
+          loadTodayActivity();
         })
         .withFailureHandler(function(err){
           if(btnEl){ btnEl.disabled = false; btnEl.innerHTML = originalHtml; }

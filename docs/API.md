@@ -6,6 +6,18 @@
 
 ---
 
+## SheetService.gs (دالة عامة مشتركة، متاحة لكل الأدوار)
+
+### `getTodayActivity(token)`
+- **الغرض**: ملخص "نشاط اليوم" — عدد وكمية كل عملية إدخال يدوية بتاريخ اليوم عبر المراحل الخمس، تُعرض كبطاقة أعلى صفحتي الإدخال والتقارير.
+- **Parameters**: `token` فقط.
+- **Return**: `{date, rawReceived:{count,quantityKg}, sentToRoastery:{count,quantityKg}, receivedFromRoastery:{count,quantityKg}, packing:{count,bagsProduced}, finished:{count,bagsAdded}, totalOperations}`.
+- **الأخطاء**: جلسة غير صالحة فقط — **متاحة لأي دور مسجَّل دخول** (`requireSession_` فقط، بدون تقييد دور محدَّد)، بخلاف بقية دوال `EntryOperations.gs`/`ReportsOperations.gs`.
+- **يُستدعى من**: `Entry.html` (`loadTodayActivity()` عند التحميل وبعد كل عملية حفظ ناجحة) و`Reports.html` (`loadTodayActivity()` عند التحميل).
+- **ملاحظة**: مستقلة تماماً عن فلتر الفترة الزمنية في صفحة التقارير — تعرض دائماً تاريخ اليوم الفعلي بغض النظر عن أي فلتر مُطبَّق على التقارير الستة.
+
+---
+
 ## Auth.gs
 
 ### `login(username, password)`

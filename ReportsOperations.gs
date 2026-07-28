@@ -20,15 +20,10 @@ function reportRoles_() {
 }
 
 /**
- * يحوّل قيمة تاريخ (نص ISO أو كائن Date) إلى صيغة 'yyyy-MM-dd' بتوقيت
- * المشروع (Asia/Qatar)، لمقارنة نطاقات التاريخ بشكل صحيح ومتّسق.
+ * يحوّل قيمة تاريخ إلى صيغة 'yyyy-MM-dd' لمقارنة نطاقات التاريخ.
+ * (الدالة نفسها تعيش الآن في SheetService.gs كطبقة مشتركة، لأن
+ * getTodayActivity() تحتاجها أيضاً - راجع CLAUDE.md §3.)
  */
-function dateOnly_(dateVal) {
-  if (!dateVal) return '';
-  const d = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
-  if (isNaN(d.getTime())) return String(dateVal).slice(0, 10);
-  return Utilities.formatDate(d, Session.getScriptTimeZone() || 'Asia/Qatar', 'yyyy-MM-dd');
-}
 
 /** يفلتر صفوفاً حسب عمود Date ضمن [fromDate, toDate] شاملاً الطرفين. فارغ = بدون فلترة. */
 function filterByDateRange_(rows, fromDate, toDate) {

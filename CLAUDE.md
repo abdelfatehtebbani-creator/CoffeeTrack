@@ -26,6 +26,7 @@ HTML (Login/Entry/Reports) --google.script.run--> EntryOperations.gs / ReportsOp
 - **كل استدعاء من الواجهة يرسل `token` كأول باراميتر** (باستثناء `login`). هذا التوكن يُحفظ في `sessionStorage` على المتصفح (وليس `localStorage`).
 - **Server → Sheets**: حصراً عبر `SheetService.gs`.
 - لا يوجد اتصال مباشر بين `EntryOperations.gs` و`ReportsOperations.gs`؛ كلاهما يعتمد فقط على `SheetService.gs`.
+- **دالة عامة تُستخدم من الصفحتين معاً (Entry و Reports) بلا تمييز دور** (مثال: `getTodayActivity()`) **تعيش في `SheetService.gs`** مباشرة، وليست في `EntryOperations.gs` أو `ReportsOperations.gs` — هذا يحافظ على القاعدة أعلاه (لا اتصال مباشر بين الملفين) ويتفادى ازدواجية الكود. تحقّق الصلاحية لمثل هذه الدوال عبر `requireSession_()` فقط (أي دور)، وليس `entryRoles_()`/`reportRoles_()`.
 
 ## 4) الأنماط التصميمية المستخدمة (Design Patterns)
 - **Repository-lite pattern**: `SheetService.gs` يعمل كطبقة وصول بيانات موحّدة (يشبه Repository)، يُخفي تفاصيل `Range`/`getValues` عن باقي الكود.

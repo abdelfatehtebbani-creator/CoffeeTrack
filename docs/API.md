@@ -76,36 +76,38 @@
 ## ReportsOperations.gs
 كل الدوال هنا تتطلب دور `Admin` أو `Accountant` (`REPORT_ROLES`) — قراءة فقط، لا تعديل بيانات.
 
-### `reportRawReceivedByType(token)`
+**فلترة بنطاق تاريخ (`fromDate`/`toDate`)**: التقارير 1, 2, 3, 5, 6 تقبل باراميترين اختياريين إضافيين، نص بصيغة `'yyyy-MM-dd'` أو `''` لعدم الفلترة — تُستخدم لعزل فترة زمنية محددة (مثلاً الدفعة الحديثة فقط، مستبعدةً رصيداً افتتاحياً قديماً). التقرير 4 استثناء متعمَّد (لا يقبلهما) لأنه يعرض رصيداً فعلياً لحظياً وليس مجموعاً على فترة.
+
+### `reportRawReceivedByType(token, fromDate?, toDate?)`
 - **الغرض**: تفصيل الكميات المستلمة من المورد حسب الصنف.
 - **Return**: `{rows: [...], totalsByType: {type: kg}, grandTotalKg}`.
 - **يُستدعى من**: `Reports.html` (ضمن `getAllReports`).
 
-### `reportSentToRoastery(token)`
+### `reportSentToRoastery(token, fromDate?, toDate?)`
 - **الغرض**: تفصيل الكميات المرسلة للتحميص.
-- **Return**: `{rows: [...], totalsByType: {type: kg}, grandTotalKg}`.
+- **Return**: `{rows: [...], totalsByType: {type: kg}, grandTotalKg, atRoasteryKg}` — `atRoasteryKg` غير مفلتَر بالتاريخ (رصيد لحظي).
 
-### `reportReceivedFromRoastery(token)`
+### `reportReceivedFromRoastery(token, fromDate?, toDate?)`
 - **الغرض**: تفصيل الكميات المستلمة بعد التحميص + نسبة الهدر الإجمالية.
 - **Return**: `{rows: [...], totals: {sentKg, receivedKg, wasteKg, wastePercent}}`.
 
 ### `reportRoastedAvailable(token)`
-- **الغرض**: الكمية المحمصة المتوفرة حالياً في المخزون.
+- **الغرض**: الكمية المحمصة المتوفرة حالياً في المخزون (رصيد فعلي لحظي — لا يقبل فلتر تاريخ عمداً).
 - **Return**: `{totalReceivedFromRoastery, totalSentToPacking, availableKg}`.
 
-### `reportPackingInProgress(token)`
+### `reportPackingInProgress(token, fromDate?, toDate?)`
 - **الغرض**: الكمية قيد التعبئة (نصف جاهزة) + نسبة هدر التعبئة.
-- **Return**: `{rows: [...], totals: {inputKg, bagsProduced, expectedOutputKg, wasteKg, wastePercent, bagsStillInProgress}}`.
+- **Return**: `{rows: [...], totals: {inputKg, bagsProduced, expectedOutputKg, wasteKg, wastePercent, bagsStillInProgress}}` — `bagsStillInProgress` غير مفلتَر بالتاريخ (رصيد لحظي).
 
-### `reportFinishedProducts(token)`
+### `reportFinishedProducts(token, fromDate?, toDate?)`
 - **الغرض**: تفصيل الكمية الجاهزة (منتج نهائي).
 - **Return**: `{rows: [...], totalBags}`.
 
-### `getAllReports(token)`
+### `getAllReports(token, fromDate?, toDate?)`
 - **الغرض**: دالة تجميعية تستدعي التقارير الستة أعلاه بنداء واحد — تُستخدم لتقليل عدد رحلات `google.script.run` عند تحميل الصفحة.
 - **Return**: `{rawReceived, sentToRoastery, receivedFromRoastery, roastedAvailable, packingInProgress, finishedProducts}` (كل مفتاح هو نفس مخرج الدالة المقابلة أعلاه).
 - **الأخطاء**: أي خطأ صلاحية يوقف الاستدعاء بالكامل (لا نتائج جزئية).
-- **يُستدعى من**: `Reports.html` → `refreshAll()` عند تحميل الصفحة وعند الضغط على "تحديث".
+- **يُستدعى من**: `Reports.html` → `refreshAll()` عند تحميل الصفحة، عند الضغط على "تحديث"، وعند تطبيق/مسح فلتر التاريخ (`applyFilter_`, `clearFilter_`).
 
 ---
 

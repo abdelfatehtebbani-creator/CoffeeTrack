@@ -156,6 +156,7 @@
 
     let TOKEN = null;
     let COFFEE_TYPES = [];
+    let lastBalances_ = null; // نخزّن آخر بيانات مؤشرات لإعادة رسمها عند تبديل اللغة
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -200,12 +201,16 @@
       document.getElementById('btn-ar').classList.toggle('active', lang === 'ar');
       document.getElementById('btn-en').classList.toggle('active', lang === 'en');
       document.querySelectorAll('.i18n').forEach(el => { el.textContent = el.getAttribute('data-' + lang); });
+      // البطاقات الإحصائية تُبنى ديناميكياً بجافاسكربت وليست عناصر .i18n ثابتة،
+      // لذا يجب إعادة رسمها يدوياً عند تبديل اللغة وإلا بقيت بلغة التحميل الأولى.
+      if(lastBalances_) renderKpis_(lastBalances_);
     }
 
     function loadBalances(){
       google.script.run
         .withSuccessHandler(function(bal){
           COFFEE_TYPES = bal.coffeeTypes;
+          lastBalances_ = bal;
           populateCoffeeSelects_();
           renderKpis_(bal);
         })

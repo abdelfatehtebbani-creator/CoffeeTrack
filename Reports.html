@@ -34,6 +34,32 @@
       </div>
     </div>
 
+    <!-- فلتر النطاق الزمني: لعزل الدفعة الحديثة عن أي رصيد قديم/افتتاحي -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="فلتر الفترة الزمنية" data-en="Date Range Filter">فلتر الفترة الزمنية</span>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label class="i18n" data-ar="من تاريخ" data-en="From Date">من تاريخ</label>
+          <input type="date" id="filterFrom">
+        </div>
+        <div class="field">
+          <label class="i18n" data-ar="إلى تاريخ" data-en="To Date">إلى تاريخ</label>
+          <input type="date" id="filterTo">
+        </div>
+        <div class="field" style="display:flex;align-items:flex-end;gap:8px">
+          <button class="btn btn-primary" onclick="applyFilter_()">
+            <span class="i18n" data-ar="تطبيق الفلتر" data-en="Apply Filter">تطبيق الفلتر</span>
+          </button>
+          <button class="btn btn-outline" onclick="clearFilter_()">
+            <span class="i18n" data-ar="عرض الكل" data-en="Show All">عرض الكل</span>
+          </button>
+        </div>
+      </div>
+      <p class="i18n" style="font-size:12px;color:var(--text-muted);margin:12px 0 0" data-ar="ملاحظة: بطاقتا 'قهوة محمصة متوفرة' و'أكياس قيد التعبئة' تعرضان دائماً الرصيد الفعلي الحالي (غير متأثرتين بالفلتر) لأنهما حقيقة لحظية وليست مجموعاً على فترة." data-en="Note: 'Roasted Coffee Available' and 'Bags in Packing' always show the true current balance (unaffected by the filter) since they're a live snapshot, not a period total.">ملاحظة: بطاقتا "قهوة محمصة متوفرة" و"أكياس قيد التعبئة" تعرضان دائماً الرصيد الفعلي الحالي (غير متأثرتين بالفلتر) لأنهما حقيقة لحظية وليست مجموعاً على فترة.</p>
+    </div>
+
     <div id="loadingMsg" class="empty-state i18n" data-ar="جاري تحميل التقارير..." data-en="Loading reports...">جاري تحميل التقارير...</div>
 
     <div id="reportsContainer" style="display:none">
@@ -148,6 +174,9 @@
 
     let TOKEN = null;
     let LANG = 'ar';
+    let lastReportsData_ = null; // نخزّن آخر بيانات تقارير لإعادة رسمها عند تبديل اللغة
+    let filterFrom_ = '';
+    let filterTo_ = '';
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -177,6 +206,9 @@
       document.getElementById('btn-ar').classList.toggle('active', lang === 'ar');
       document.getElementById('btn-en').classList.toggle('active', lang === 'en');
       document.querySelectorAll('.i18n').forEach(el => { el.textContent = el.getAttribute('data-' + lang); });
+      // كل بطاقات التقارير وجداولها تُبنى ديناميكياً بجافاسكربت (kpi_ وغيرها)
+      // وليست عناصر .i18n ثابتة، لذا يجب إعادة رسمها يدوياً عند تبديل اللغة.
+      if(lastReportsData_) renderAll_(lastReportsData_);
     }
 
     function refreshAll(){
@@ -189,7 +221,21 @@
           sessionStorage.clear();
           window.top.location.href = BASE_URL;
         })
-        .getAllReports(TOKEN);
+        .getAllReports(TOKEN, filterFrom_, filterTo_);
+    }
+
+    function applyFilter_(){
+      filterFrom_ = document.getElementById('filterFrom').value || '';
+      filterTo_ = document.getElementById('filterTo').value || '';
+      refreshAll();
+    }
+
+    function clearFilter_(){
+      document.getElementById('filterFrom').value = '';
+      document.getElementById('filterTo').value = '';
+      filterFrom_ = '';
+      filterTo_ = '';
+      refreshAll();
     }
 
     function kpi_(labelAr, labelEn, value){
@@ -213,6 +259,7 @@
             : 'Failed to load reports. Check for non-numeric text accidentally in quantity columns, then click Refresh.';
         return;
       }
+      lastReportsData_ = data;
       // ----- 1 -----
       document.getElementById('r1-totals').innerHTML =
         Object.keys(data.rawReceived.totalsByType).map(t => kpi_(t + ' (كغ)', t + ' (kg)', data.rawReceived.totalsByType[t])).join('')

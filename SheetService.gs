@@ -44,7 +44,16 @@ function readSheetAsObjects_(sheetName) {
 
   return values.map((row, idx) => {
     const obj = { _row: idx + 2 }; // actual sheet row number, useful for updates
-    headers.forEach((h, i) => obj[h] = row[i]);
+    headers.forEach((h, i) => {
+      let v = row[i];
+      // مهم جداً: نحوّل أي كائن Date حقيقي (كما تُقرأ حقول التاريخ من الشيت
+      // تلقائياً) إلى نص ISO فوراً هنا. جسر google.script.run الداخلي يفشل
+      // بصمت (يُرجع null للعميل بلا أي خطأ) عند إرجاع كائنات Date حقيقية
+      // متداخلة داخل مصفوفات كبيرة عبر return عادي - تم تشخيص هذا فعلياً
+      // وإصلاحه هنا. راجع CLAUDE.md §8.4 لتفاصيل كاملة.
+      if (v instanceof Date) v = v.toISOString();
+      obj[h] = v;
+    });
     return obj;
   });
 }

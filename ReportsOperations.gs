@@ -127,12 +127,6 @@ function getAllReports(token) {
       );
     }
 
-    // === تشخيص مؤقت — احذفه بعد حل المشكلة ===
-    // بدل الاعتماد على Cloud Logs (قد يتأخر ظهورها دقائق)، نرمي البيانات
-    // نفسها كرسالة خطأ متعمّدة، فتصل فوراً لمعالج withFailureHandler في
-    // المتصفح مباشرة بلا أي تأخير أو اعتماد على نظام سجلات خارجي.
-    throw new Error('DEBUG_DATA: ' + JSON.stringify(result).substring(0, 1500));
-
     return result;
   } catch (err) {
     throw new Error('فشل تحميل التقارير: ' + err.message + ' / Failed to load reports: ' + err.message);

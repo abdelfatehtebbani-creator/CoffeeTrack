@@ -59,6 +59,9 @@
       <button class="tab-btn" data-tab="finished" onclick="showTab('finished')">
         <span class="i18n" data-ar="منتج نهائي جاهز" data-en="Finished Product">منتج نهائي جاهز</span>
       </button>
+      <button class="tab-btn" data-tab="delivery" onclick="showTab('delivery')">
+        <span class="i18n" data-ar="تسليم" data-en="Delivery">تسليم</span>
+      </button>
     </div>
 
     <!-- ===== FORM 1: Raw Received ===== -->
@@ -155,6 +158,24 @@
       </button>
       <div class="alert" id="alert-finished"></div>
     </div>
+
+    <!-- ===== FORM 6: Delivery ===== -->
+    <div class="card tab-panel" id="panel-delivery" style="display:none">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="تسليم المنتج للعميل" data-en="Product Delivery">تسليم المنتج للعميل</span>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</label><input type="date" id="delivery_date"></div>
+        <div class="field"><label class="i18n" data-ar="رقم الدفعة" data-en="Batch Ref">رقم الدفعة</label><input type="text" id="delivery_batch"></div>
+        <div class="field"><label class="i18n" data-ar="عدد الأكياس المُسلَّمة" data-en="Bags Delivered">عدد الأكياس المُسلَّمة</label><input type="number" step="1" id="delivery_bags"></div>
+        <div class="field"><label class="i18n" data-ar="العميل / الوجهة" data-en="Customer / Destination">العميل / الوجهة</label><input type="text" id="delivery_customer"></div>
+        <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="delivery_notes" rows="2"></textarea></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('delivery', this)">
+        <span class="i18n" data-ar="حفظ" data-en="Save">حفظ</span>
+      </button>
+      <div class="alert" id="alert-delivery"></div>
+    </div>
   </div>
 
   <script>
@@ -194,7 +215,7 @@
 
     function setDefaultDates_(){
       const today = new Date().toISOString().slice(0,10);
-      ['raw_date','sent_date','received_date','packing_date','finished_date'].forEach(id => {
+      ['raw_date','sent_date','received_date','packing_date','finished_date','delivery_date'].forEach(id => {
         document.getElementById(id).value = today;
       });
     }
@@ -260,7 +281,8 @@
         { labelAr: 'عند المحمصة الآن (كغ)', labelEn: 'Currently At Roastery (kg)', value: bal.atRoasteryKg },
         { labelAr: 'قهوة محمصة متوفرة (كغ)', labelEn: 'Roasted Coffee Available (kg)', value: bal.roastedStock },
         { labelAr: 'أكياس تحت التعبئة', labelEn: 'Bags in Packing', value: bal.packingInProgressBags },
-        { labelAr: 'إجمالي المنتج النهائي (كيس)', labelEn: 'Total Finished Bags', value: bal.finishedBags }
+        { labelAr: 'متاح للتسليم (كيس)', labelEn: 'Available for Delivery (bags)', value: bal.finishedStockAvailable },
+        { labelAr: 'إجمالي المنتج النهائي تراكمياً (كيس)', labelEn: 'Total Finished Ever (bags)', value: bal.finishedBags }
       ];
       grid.innerHTML = items.map(i => `
         <div class="kpi">
@@ -278,7 +300,8 @@
         { labelAr: 'إرسال للتحميص', labelEn: 'Sent to Roastery', value: act.sentToRoastery.count + ' / ' + act.sentToRoastery.quantityKg + ' ' + (lang === 'ar' ? 'كغ' : 'kg') },
         { labelAr: 'استلام من التحميص', labelEn: 'Received from Roastery', value: act.receivedFromRoastery.count + ' / ' + act.receivedFromRoastery.quantityKg + ' ' + (lang === 'ar' ? 'كغ' : 'kg') },
         { labelAr: 'تعبئة (أكياس)', labelEn: 'Packing (bags)', value: act.packing.count + ' / ' + act.packing.bagsProduced },
-        { labelAr: 'منتج نهائي جاهز', labelEn: 'Finished Product', value: act.finished.count + ' / ' + act.finished.bagsAdded }
+        { labelAr: 'منتج نهائي جاهز', labelEn: 'Finished Product', value: act.finished.count + ' / ' + act.finished.bagsAdded },
+        { labelAr: 'تسليم للعميل', labelEn: 'Delivery', value: act.delivery.count + ' / ' + act.delivery.bagsDelivered }
       ];
       grid.innerHTML = items.map(i => `
         <div class="kpi">
@@ -333,6 +356,10 @@
         finished: { fn: 'submitFinishedProduct', data: {
           date: v_('finished_date'), batchRef: v_('finished_batch'),
           bagsAdded: v_('finished_bags'), productName: v_('finished_productName'), notes: v_('finished_notes')
+        }},
+        delivery: { fn: 'submitDelivery', data: {
+          date: v_('delivery_date'), batchRef: v_('delivery_batch'),
+          bagsDelivered: v_('delivery_bags'), customer: v_('delivery_customer'), notes: v_('delivery_notes')
         }}
       };
       const cfg = fnMap[panel];

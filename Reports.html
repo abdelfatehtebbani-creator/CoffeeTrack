@@ -172,6 +172,24 @@
         </table></div>
       </div>
 
+      <!-- 7. Deliveries -->
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>
+          <span class="i18n" data-ar="7) تفصيل التسليمات للعملاء" data-en="7) Customer Deliveries">7) تفصيل التسليمات للعملاء</span>
+        </div>
+        <div class="kpi-grid" id="r7-totals"></div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</th>
+            <th class="i18n" data-ar="الدفعة" data-en="Batch">الدفعة</th>
+            <th class="i18n" data-ar="الأكياس المُسلَّمة" data-en="Bags Delivered">الأكياس المُسلَّمة</th>
+            <th class="i18n" data-ar="العميل" data-en="Customer">العميل</th>
+            <th class="i18n" data-ar="أدخل بواسطة" data-en="Entered By">أدخل بواسطة</th>
+          </tr></thead>
+          <tbody id="r7-body"></tbody>
+        </table></div>
+      </div>
+
     </div>
   </div>
 
@@ -240,7 +258,8 @@
         { labelAr: 'إرسال للتحميص', labelEn: 'Sent to Roastery', value: act.sentToRoastery.count + ' / ' + act.sentToRoastery.quantityKg + ' ' + (lang === 'ar' ? 'كغ' : 'kg') },
         { labelAr: 'استلام من التحميص', labelEn: 'Received from Roastery', value: act.receivedFromRoastery.count + ' / ' + act.receivedFromRoastery.quantityKg + ' ' + (lang === 'ar' ? 'كغ' : 'kg') },
         { labelAr: 'تعبئة (أكياس)', labelEn: 'Packing (bags)', value: act.packing.count + ' / ' + act.packing.bagsProduced },
-        { labelAr: 'منتج نهائي جاهز', labelEn: 'Finished Product', value: act.finished.count + ' / ' + act.finished.bagsAdded }
+        { labelAr: 'منتج نهائي جاهز', labelEn: 'Finished Product', value: act.finished.count + ' / ' + act.finished.bagsAdded },
+        { labelAr: 'تسليم للعميل', labelEn: 'Delivery', value: act.delivery.count + ' / ' + act.delivery.bagsDelivered }
       ];
       grid.innerHTML = items.map(i => `
         <div class="kpi">
@@ -348,9 +367,17 @@
 
       // ----- 6 -----
       document.getElementById('r6-totals').innerHTML =
-        kpi_('إجمالي الأكياس الجاهزة', 'Total Finished Bags', data.finishedProducts.totalBags);
+        kpi_('إجمالي الأكياس الجاهزة (تراكمي)', 'Total Finished Ever (bags)', data.finishedProducts.totalBags) +
+        kpi_('متاح للتسليم الآن', 'Available for Delivery Now', data.finishedProducts.availableForDelivery);
       document.getElementById('r6-body').innerHTML = data.finishedProducts.rows.map(r => `
         <tr><td>${fmtDate_(r.date)}</td><td>${r.batchRef||''}</td><td>${r.bagsAdded}</td><td>${r.productName||''}</td><td>${r.enteredBy}</td></tr>
+      `).join('') || emptyRow_(5);
+
+      // ----- 7 -----
+      document.getElementById('r7-totals').innerHTML =
+        kpi_('إجمالي الأكياس المُسلَّمة', 'Total Bags Delivered', data.deliveries.totalBags);
+      document.getElementById('r7-body').innerHTML = data.deliveries.rows.map(r => `
+        <tr><td>${fmtDate_(r.date)}</td><td>${r.batchRef||''}</td><td>${r.bagsDelivered}</td><td>${r.customer||''}</td><td>${r.enteredBy}</td></tr>
       `).join('') || emptyRow_(5);
 
       document.getElementById('loadingMsg').style.display = 'none';

@@ -11,7 +11,7 @@
 ### `getTodayActivity(token)`
 - **الغرض**: ملخص "نشاط اليوم" — عدد وكمية كل عملية إدخال يدوية بتاريخ اليوم عبر المراحل الخمس، تُعرض كبطاقة أعلى صفحتي الإدخال والتقارير.
 - **Parameters**: `token` فقط.
-- **Return**: `{date, rawReceived:{count,quantityKg}, sentToRoastery:{count,quantityKg}, receivedFromRoastery:{count,quantityKg}, packing:{count,bagsProduced}, finished:{count,bagsAdded}, totalOperations}`.
+- **Return**: `{date, rawReceived:{count,quantityKg}, sentToRoastery:{count,quantityKg}, receivedFromRoastery:{count,quantityKg}, packing:{count,bagsProduced}, finished:{count,bagsAdded}, delivery:{count,bagsDelivered}, totalOperations}`.
 - **الأخطاء**: جلسة غير صالحة فقط — **متاحة لأي دور مسجَّل دخول** (`requireSession_` فقط، بدون تقييد دور محدَّد)، بخلاف بقية دوال `EntryOperations.gs`/`ReportsOperations.gs`.
 - **يُستدعى من**: `Entry.html` (`loadTodayActivity()` عند التحميل وبعد كل عملية حفظ ناجحة) و`Reports.html` (`loadTodayActivity()` عند التحميل).
 - **ملاحظة**: مستقلة تماماً عن فلتر الفترة الزمنية في صفحة التقارير — تعرض دائماً تاريخ اليوم الفعلي بغض النظر عن أي فلتر مُطبَّق على التقارير الستة.
@@ -76,10 +76,19 @@
 - **الأخطاء**: حقول مفقودة، `bagsAdded` ≤ 0، **"عدد الأكياس أكبر من المتوفر في طور التعبئة"**.
 - **يُستدعى من**: `Entry.html` → تبويب "منتج نهائي جاهز".
 
+### `submitDelivery(token, data)`
+- **الغرض**: تسجيل تسليم أكياس من المخزون الجاهز لعميل/وجهة، يخصم من `getFinishedStockBalance_()`.
+- **Parameters**: `data = {date, batchRef?, bagsDelivered, customer?, notes?}`.
+- **Return**: `{success: true, id, message}`.
+- **الأخطاء**: حقول مفقودة، `bagsDelivered` ≤ 0، **"عدد الأكياس أكبر من المتوفر في المخزون الجاهز للتسليم"**.
+- **يُستدعى من**: `Entry.html` → تبويب "تسليم" (السادس والأخير).
+
 ### `getCurrentBalances(token)`
 - **الغرض**: تزويد لوحة المؤشرات (KPI) في صفحة الإدخال بالأرصدة اللحظية.
 - **Parameters**: `token` فقط.
-- **Return**: `{rawStock: {type1: n, type2: n}, atRoasteryKg: n, roastedStock: n, packingInProgressBags: n, finishedBags: n, coffeeTypes: [type1, type2]}`.
+- **Return**: `{rawStock: {type1: n, type2: n}, atRoasteryKg: n, roastedStock: n, packingInProgressBags: n, finishedStockAvailable: n, finishedBags: n, coffeeTypes: [type1, type2]}`.
+  - `finishedStockAvailable`: المخزون الجاهز **المتاح فعلياً للتسليم الآن** (= `finishedBags` − إجمالي المُسلَّم عبر `Deliveries`).
+  - `finishedBags`: إجمالي كل ما سُجِّل كمنتج نهائي **تراكمياً منذ البداية** (لا يُخصَم منه التسليم — رقم تاريخي وليس رصيداً حالياً).
 - **الأخطاء**: جلسة غير صالحة فقط (أي دور مسجَّل دخول يمكنه قراءتها، تُستخدم أيضاً لملء قوائم الأصناف المنسدلة).
 - **يُستدعى من**: `Entry.html` → `loadBalances()` عند تحميل الصفحة وبعد كل عملية حفظ ناجحة.
 
@@ -88,7 +97,7 @@
 ## ReportsOperations.gs
 كل الدوال هنا تتطلب دور `Admin` أو `Accountant` (`REPORT_ROLES`) — قراءة فقط، لا تعديل بيانات.
 
-**فلترة بنطاق تاريخ (`fromDate`/`toDate`)**: التقارير 1, 2, 3, 5, 6 تقبل باراميترين اختياريين إضافيين، نص بصيغة `'yyyy-MM-dd'` أو `''` لعدم الفلترة — تُستخدم لعزل فترة زمنية محددة (مثلاً الدفعة الحديثة فقط، مستبعدةً رصيداً افتتاحياً قديماً). التقرير 4 استثناء متعمَّد (لا يقبلهما) لأنه يعرض رصيداً فعلياً لحظياً وليس مجموعاً على فترة.
+**فلترة بنطاق تاريخ (`fromDate`/`toDate`)**: التقارير 1, 2, 3, 5, 6, 7 تقبل باراميترين اختياريين إضافيين، نص بصيغة `'yyyy-MM-dd'` أو `''` لعدم الفلترة — تُستخدم لعزل فترة زمنية محددة (مثلاً الدفعة الحديثة فقط، مستبعدةً رصيداً افتتاحياً قديماً). التقرير 4 استثناء متعمَّد (لا يقبلهما) لأنه يعرض رصيداً فعلياً لحظياً وليس مجموعاً على فترة.
 
 ### `reportRawReceivedByType(token, fromDate?, toDate?)`
 - **الغرض**: تفصيل الكميات المستلمة من المورد حسب الصنف.
@@ -113,11 +122,15 @@
 
 ### `reportFinishedProducts(token, fromDate?, toDate?)`
 - **الغرض**: تفصيل الكمية الجاهزة (منتج نهائي).
+- **Return**: `{rows: [...], totalBags, availableForDelivery}` — `availableForDelivery` رصيد لحظي حقيقي (غير مفلتَر بالتاريخ)، يساوي `getFinishedStockBalance_()`.
+
+### `reportDeliveries(token, fromDate?, toDate?)`
+- **الغرض**: تفصيل عمليات تسليم المنتج للعملاء (التقرير السابع).
 - **Return**: `{rows: [...], totalBags}`.
 
 ### `getAllReports(token, fromDate?, toDate?)`
-- **الغرض**: دالة تجميعية تستدعي التقارير الستة أعلاه بنداء واحد — تُستخدم لتقليل عدد رحلات `google.script.run` عند تحميل الصفحة.
-- **Return**: `{rawReceived, sentToRoastery, receivedFromRoastery, roastedAvailable, packingInProgress, finishedProducts}` (كل مفتاح هو نفس مخرج الدالة المقابلة أعلاه).
+- **الغرض**: دالة تجميعية تستدعي التقارير السبعة أعلاه بنداء واحد — تُستخدم لتقليل عدد رحلات `google.script.run` عند تحميل الصفحة.
+- **Return**: `{rawReceived, sentToRoastery, receivedFromRoastery, roastedAvailable, packingInProgress, finishedProducts, deliveries}` (كل مفتاح هو نفس مخرج الدالة المقابلة أعلاه).
 - **الأخطاء**: أي خطأ صلاحية يوقف الاستدعاء بالكامل (لا نتائج جزئية).
 - **يُستدعى من**: `Reports.html` → `refreshAll()` عند تحميل الصفحة، عند الضغط على "تحديث"، وعند تطبيق/مسح فلتر التاريخ (`applyFilter_`, `clearFilter_`).
 

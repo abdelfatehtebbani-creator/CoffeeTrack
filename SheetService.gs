@@ -113,6 +113,7 @@ function getTodayActivity(token) {
   const received = todayRows_(SHEETS.RECEIVED_ROASTERY);
   const packing = todayRows_(SHEETS.PACKING);
   const finished = todayRows_(SHEETS.FINISHED);
+  const delivery = todayRows_(SHEETS.DELIVERIES);
 
   return {
     date: today,
@@ -121,7 +122,8 @@ function getTodayActivity(token) {
     receivedFromRoastery: { count: received.length, quantityKg: sumOf_(received, 'ReceivedQuantityKg') },
     packing: { count: packing.length, bagsProduced: sumOf_(packing, 'BagsProduced') },
     finished: { count: finished.length, bagsAdded: sumOf_(finished, 'BagsAdded') },
-    totalOperations: raw.length + sent.length + received.length + packing.length + finished.length
+    delivery: { count: delivery.length, bagsDelivered: sumOf_(delivery, 'BagsDelivered') },
+    totalOperations: raw.length + sent.length + received.length + packing.length + finished.length + delivery.length
   };
 }
 
@@ -236,4 +238,15 @@ function sumBagsFinished_() {
 /** Bags produced by packing but not yet confirmed as finished product ("نصف جاهزة"). */
 function getPackingInProgressBags_() {
   return sumBagsProduced_() - sumBagsFinished_();
+}
+
+/** Total bags already registered as delivered to customers. */
+function sumBagsDelivered_() {
+  return readSheetAsObjects_(SHEETS.DELIVERIES)
+    .reduce((s, r) => s + (Number(r.BagsDelivered) || 0), 0);
+}
+
+/** المخزون الجاهز المتاح فعلياً للتسليم الآن (منتج نهائي مُسجَّل - ما تم تسليمه بالفعل). */
+function getFinishedStockBalance_() {
+  return sumBagsFinished_() - sumBagsDelivered_();
 }

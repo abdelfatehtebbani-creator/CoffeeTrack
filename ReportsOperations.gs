@@ -122,12 +122,24 @@ function reportFinishedProducts(token, fromDate, toDate) {
   const rows = filterByDateRange_(readSheetAsObjects_(SHEETS.FINISHED), fromDate, toDate);
   return {
     rows: rows.map(r => ({ date: r.Date, batchRef: r.BatchRef, bagsAdded: r.BagsAdded, productName: r.ProductName, enteredBy: r.EnteredBy })),
-    totalBags: sumField_(rows, 'BagsAdded')
+    totalBags: sumField_(rows, 'BagsAdded'),
+    // "متاح للتسليم الآن" رصيد لحظي حقيقي (غير مفلتَر بالتاريخ عمداً)
+    availableForDelivery: getFinishedStockBalance_()
+  };
+}
+
+/** 7) تفصيل عمليات التسليم للعملاء */
+function reportDeliveries(token, fromDate, toDate) {
+  requireRole_(token, reportRoles_());
+  const rows = filterByDateRange_(readSheetAsObjects_(SHEETS.DELIVERIES), fromDate, toDate);
+  return {
+    rows: rows.map(r => ({ date: r.Date, batchRef: r.BatchRef, bagsDelivered: r.BagsDelivered, customer: r.Customer, enteredBy: r.EnteredBy })),
+    totalBags: sumField_(rows, 'BagsDelivered')
   };
 }
 
 /**
- * Convenience: loads all 6 reports in a single call (used on Reports.html page load).
+ * Convenience: loads all 7 reports in a single call (used on Reports.html page load).
  * @param {string} fromDate - 'yyyy-MM-dd' أو '' لعدم الفلترة من البداية.
  * @param {string} toDate - 'yyyy-MM-dd' أو '' لعدم الفلترة حتى اليوم.
  */
@@ -140,7 +152,8 @@ function getAllReports(token, fromDate, toDate) {
       receivedFromRoastery: reportReceivedFromRoastery(token, fromDate, toDate),
       roastedAvailable: reportRoastedAvailable(token),
       packingInProgress: reportPackingInProgress(token, fromDate, toDate),
-      finishedProducts: reportFinishedProducts(token, fromDate, toDate)
+      finishedProducts: reportFinishedProducts(token, fromDate, toDate),
+      deliveries: reportDeliveries(token, fromDate, toDate)
     };
 
     // فحص دفاعي حاسم: جسر google.script.run يحوّل الاستجابة بالكامل إلى `null`

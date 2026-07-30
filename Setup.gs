@@ -27,6 +27,7 @@ const SHEETS = {
   RECEIVED_ROASTERY: 'Received_from_Roastery',
   PACKING: 'Packing_Process',
   FINISHED: 'Finished_Products',
+  DELIVERIES: 'Deliveries',
   AUDIT: 'AuditLog'
 };
 
@@ -58,6 +59,8 @@ function initializeSpreadsheet() {
     ['ID', 'Date', 'BatchRef', 'InputQuantityKg', 'BagsProduced', 'ExpectedOutputKg', 'WasteKg', 'WastePercent', 'Notes', 'EnteredBy', 'Timestamp']);
   createSheetIfMissing_(ss, SHEETS.FINISHED,
     ['ID', 'Date', 'BatchRef', 'BagsAdded', 'ProductName', 'Notes', 'EnteredBy', 'Timestamp']);
+  createSheetIfMissing_(ss, SHEETS.DELIVERIES,
+    ['ID', 'Date', 'BatchRef', 'BagsDelivered', 'Customer', 'Notes', 'EnteredBy', 'Timestamp']);
   createSheetIfMissing_(ss, SHEETS.AUDIT,
     ['Timestamp', 'Username', 'Action', 'Details']);
 

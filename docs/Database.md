@@ -75,7 +75,19 @@
 | `BagsAdded` | يجب ≤ `getPackingInProgressBags_()` (الأكياس المنتجة في `Packing_Process` والتي لم تُسجَّل بعد كمنتج نهائي) |
 | `ProductName` | افتراضي: "Ready-Made Packed Coffee" |
 
-## 8) `AuditLog`
+## 8) `Deliveries` — تسليم المنتج للعميل
+| العمود | الوصف |
+|---|---|
+| `ID` | `DEL-000001` |
+| `Date` | تاريخ التسليم |
+| `BatchRef` | اختياري، للربط اليدوي بدفعة الإنتاج |
+| `BagsDelivered` | يجب ≤ `getFinishedStockBalance_()` (المتاح فعلياً بعد خصم كل التسليمات السابقة) |
+| `Customer` | اسم العميل/الوجهة، اختياري |
+| `Notes` | اختياري |
+| `EnteredBy` | Username من الجلسة |
+| `Timestamp` | تلقائي |
+
+## 9) `AuditLog`
 سجل تدقيق بسيط لكل عملية دخول/إدخال بيانات (`Timestamp`, `Username`, `Action`, `Details`). للقراءة اليدوية فقط حالياً — لا توجد واجهة لعرضه (انظر TODO).
 
 ---
@@ -88,6 +100,7 @@ getRawStockBalance_(type)     = Σ RawMaterial_Received.QuantityKg(type) − Σ 
 getAtRoasteryBalance_()       = Σ Sent_to_Roastery.QuantityKg − Σ Received_from_Roastery.SentQuantityKg
 getRoastedStockBalance_()     = Σ Received_from_Roastery.ReceivedQuantityKg − Σ Packing_Process.InputQuantityKg
 getPackingInProgressBags_()   = Σ Packing_Process.BagsProduced − Σ Finished_Products.BagsAdded
+getFinishedStockBalance_()    = Σ Finished_Products.BagsAdded − Σ Deliveries.BagsDelivered
 ```
 
 `BatchRef` هو حقل نصي حر (وليس مفتاح صارم) يُستخدم لربط الدفعات يدوياً بين المراحل عند الحاجة للتتبع — لا يُفرض تفرّده حالياً برمجياً.
@@ -112,6 +125,7 @@ getPackingInProgressBags_()   = Σ Packing_Process.BagsProduced − Σ Finished_
 | `Received_from_Roastery` | `SentQuantityKg ≤` الرصيد المتبقي "عند المحمصة الآن" (`getAtRoasteryBalance_()`) **و** `ReceivedQuantityKg ≤ SentQuantityKg` |
 | `Packing_Process` | `InputQuantityKg ≤` رصيد القهوة المحمصة المتوفرة |
 | `Finished_Products` | `BagsAdded ≤` عدد الأكياس المتوفرة في طور التعبئة |
+| `Deliveries` | `BagsDelivered ≤` المخزون الجاهز المتاح فعلياً للتسليم (`getFinishedStockBalance_()`) |
 
 كل هذه القواعد **صارمة (Strict)**: أي تجاوز يُرفض بالكامل ولا يُسجَّل، مع رسالة خطأ ثنائية اللغة توضح الرصيد المتاح فعلياً.
 

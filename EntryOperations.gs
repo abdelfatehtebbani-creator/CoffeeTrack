@@ -198,6 +198,36 @@ function submitFinishedProduct(token, data) {
   });
 }
 
+/** 6) Delivery - يسجّل تسليم أكياس من المخزون الجاهز للعملاء، يخصم من الرصيد الجاهز للتسليم */
+function submitDelivery(token, data) {
+  const session = requireRole_(token, entryRoles_());
+  validateRequired_(data, ['date', 'bagsDelivered']);
+  validatePositive_(data.bagsDelivered, 'bagsDelivered');
+
+  return withLock_(function() {
+    const bags = Number(data.bagsDelivered);
+    const available = getFinishedStockBalance_();
+    if (bags > available) {
+      throw new Error(
+        'عدد الأكياس أكبر من المتوفر في المخزون الجاهز للتسليم (' + available + ' كيس) / ' +
+        'Bags exceed the available finished stock ready for delivery (' + available + ' bags)'
+      );
+    }
+
+    const id = appendRow_(SHEETS.DELIVERIES, {
+      Date: data.date,
+      BatchRef: data.batchRef || '',
+      BagsDelivered: bags,
+      Customer: data.customer || '',
+      Notes: data.notes || '',
+      EnteredBy: session.username
+    });
+
+    writeAudit_(session.username, 'DELIVERY', id + ' / ' + bags + ' bags');
+    return { success: true, id: id, message: 'تم تسجيل التسليم بنجاح / Delivery recorded successfully' };
+  });
+}
+
 // ===== small validators =====
 function validateRequired_(data, fields) {
   fields.forEach(f => {
@@ -232,6 +262,7 @@ function getCurrentBalances(token) {
     roastedStock: Math.round(getRoastedStockBalance_() * 1000) / 1000,
     packingInProgressBags: getPackingInProgressBags_(),
     finishedBags: sumBagsFinished_(),
+    finishedStockAvailable: getFinishedStockBalance_(),
     coffeeTypes: [type1, type2]
   };
 }

@@ -109,11 +109,10 @@
       <div class="card-title"><span class="dot"></span>
         <span class="i18n" data-ar="Ground Coffee Received from the Roastery" data-en="Ground Coffee Received from the Roastery">Ground Coffee Received from the Roastery</span>
       </div>
-      <p class="i18n" style="font-size:12.5px;color:var(--text-muted);margin:-8px 0 16px" data-ar="أدخل هنا فقط الجزء الذي تستلمه في هذه الدفعة تحديداً (وليس بالضرورة كامل ما أُرسل دفعة واحدة) — راجع بطاقة 'عند المحمصة الآن' أعلى الصفحة لمعرفة الحد الأقصى المتاح." data-en="Enter only the portion received in this specific delivery (not necessarily the full original sent amount) — check the 'Currently At Roastery' card above for the maximum available.">أدخل هنا فقط الجزء الذي تستلمه في هذه الدفعة تحديداً (وليس بالضرورة كامل ما أُرسل دفعة واحدة) — راجع بطاقة "عند المحمصة الآن" أعلى الصفحة لمعرفة الحد الأقصى المتاح.</p>
+      <p class="i18n" style="font-size:12.5px;color:var(--text-muted);margin:-8px 0 16px" data-ar="أدخل فقط الكمية المستلمة فعلياً (لا حاجة لتقدير 'الكمية المرسلة' يدوياً — النظام يتحقق تلقائياً من عدم تجاوز إجمالي المتبقي عند المحمصة). راجع بطاقة 'عند المحمصة الآن' أعلى الصفحة." data-en="Enter only the quantity actually received (no need to manually estimate a 'sent quantity' — the system automatically checks against the total outstanding at the roastery). Check the 'Currently At Roastery' card above.">أدخل فقط الكمية المستلمة فعلياً (لا حاجة لتقدير "الكمية المرسلة" يدوياً — النظام يتحقق تلقائياً من عدم تجاوز إجمالي المتبقي عند المحمصة). راجع بطاقة "عند المحمصة الآن" أعلى الصفحة.</p>
       <div class="form-grid">
         <div class="field"><label class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</label><input type="date" id="received_date"></div>
         <div class="field"><label class="i18n" data-ar="رقم الدفعة" data-en="Batch Ref">رقم الدفعة</label><input type="text" id="received_batch"></div>
-        <div class="field"><label class="i18n" data-ar="الكمية المرسلة (كغ)" data-en="Sent Quantity (kg)">الكمية المرسلة (كغ)</label><input type="number" step="0.01" id="received_sentQty"></div>
         <div class="field"><label class="i18n" data-ar="الكمية المستلمة (كغ)" data-en="Received Quantity (kg)">الكمية المستلمة (كغ)</label><input type="number" step="0.01" id="received_recvQty"></div>
         <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="received_notes" rows="2"></textarea></div>
       </div>
@@ -347,7 +346,7 @@
         }},
         received: { fn: 'submitReceivedFromRoastery', data: {
           date: v_('received_date'), batchRef: v_('received_batch'),
-          sentQuantityKg: v_('received_sentQty'), receivedQuantityKg: v_('received_recvQty'), notes: v_('received_notes')
+          receivedQuantityKg: v_('received_recvQty'), notes: v_('received_notes')
         }},
         packing: { fn: 'submitPackingProcess', data: {
           date: v_('packing_date'), batchRef: v_('packing_batch'),

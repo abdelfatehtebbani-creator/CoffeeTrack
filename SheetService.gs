@@ -196,20 +196,21 @@ function sumReceivedFromRoastery_() {
     .reduce((s, r) => s + (Number(r.ReceivedQuantityKg) || 0), 0);
 }
 
-/** Total kg already "reconciled" (accounted for) via Received rows' SentQuantityKg field. */
-function sumReceivedFromRoasterySentField_() {
-  return readSheetAsObjects_(SHEETS.RECEIVED_ROASTERY)
-    .reduce((s, r) => s + (Number(r.SentQuantityKg) || 0), 0);
-}
-
 /**
- * الكمية الخام التي أُرسلت للتحميص ولم يُسجَّل استلامها بعد ("عند المحمصة حالياً").
- * = إجمالي ما أُرسل - إجمالي ما تمّت مطابقته (تسويته) عبر صفوف الاستلام حتى الآن.
- * هذا هو الرصيد الذي يجب أن يُقارَن به SentQuantityKg عند كل عملية استلام جديدة،
- * بغض النظر عن كون المحمصة تُرجع الكمية دفعة واحدة، مجزّأة، أو مخلوطة من عدة إرسالات.
+ * الكمية الخام المرسلة للتحميص ولم تُرجَع بعد كمنتج محمص ("عند المحمصة حالياً").
+ * = إجمالي ما أُرسل على الإطلاق - إجمالي ما استُلم على الإطلاق.
+ *
+ * ملاحظة تصميمية مهمة: كانت هذه الدالة تعتمد سابقاً على حقل يدوي
+ * (SentQuantityKg) يُدخِله المستخدم في كل صف استلام لتقدير "أي جزء من
+ * المرسل يقابل هذا الاستلام تحديداً". حُذف هذا الحقل من نموذج الإدخال
+ * لأنه في الواقع تخمين غير موثوق (المحمصة قد تُجزّئ أو تخلط الدفعات، فلا
+ * يمكن معرفة الكمية المُستخدَمة فعلياً لإنتاج استلام معيّن). الحساب الحالي
+ * أبسط وأدق: مقارنة مباشرة بين إجمالي شيتي Sent_to_Roastery و
+ * Received_from_Roastery بالكامل - لا يحتاج أي تخمين يدوي لكل صف، ويبقى
+ * صحيحاً بغض النظر عن كيفية تجزئة/دمج المحمصة للدفعات.
  */
 function getAtRoasteryBalance_() {
-  return sumSentToRoastery_() - sumReceivedFromRoasterySentField_();
+  return sumSentToRoastery_() - sumReceivedFromRoastery_();
 }
 
 /** Total kg sent into packing (input side). */

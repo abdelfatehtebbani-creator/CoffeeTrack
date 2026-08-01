@@ -79,48 +79,49 @@ function submitSentToRoastery(token, data) {
 /** 3) Ground Coffee Received from the Roastery (waste is auto-calculated) */
 function submitReceivedFromRoastery(token, data) {
   const session = requireRole_(token, entryRoles_());
-  validateRequired_(data, ['date', 'sentQuantityKg', 'receivedQuantityKg']);
-  validatePositive_(data.sentQuantityKg, 'sentQuantityKg');
+  validateRequired_(data, ['date', 'receivedQuantityKg']);
   validatePositive_(data.receivedQuantityKg, 'receivedQuantityKg');
 
   return withLock_(function() {
-    const sent = Number(data.sentQuantityKg);
     const received = Number(data.receivedQuantityKg);
 
-    // تحقق صارم: لا يمكن "تسوية" (مطابقة) كمية أكبر من المتبقي فعلياً عند
-    // المحمصة - هذا يمنع الخطأ الشائع عند تجزيء/دمج الدفعات (راجع docs/Database.md).
+    // تحقق صارم مبسّط (بلا حاجة لتخمين "الكمية المرسلة" يدوياً لكل صف):
+    // إجمالي كل ما استُلم على الإطلاق (بعد هذا الصف) لا يمكن أن يتجاوز إجمالي
+    // كل ما أُرسل على الإطلاق - مقارنة مباشرة بين شيتي الإرسال والاستلام
+    // بالكامل، صحيحة بغض النظر عن كيفية تجزئة/دمج المحمصة للدفعات.
+    // راجع CLAUDE.md §4.2 وdocs/Database.md لتفاصيل هذا القرار التصميمي.
     const atRoastery = getAtRoasteryBalance_();
-    if (sent > atRoastery) {
+    if (received > atRoastery) {
       throw new Error(
-        'الكمية المرسلة المُدخلة أكبر من الكمية المتبقية فعلياً عند المحمصة (' + atRoastery.toFixed(2) + ' كغ). ' +
-        'إذا كانت المحمصة أرجعت هذه الدفعة على أجزاء، أدخل فقط الجزء الذي يخص هذا الاستلام. / ' +
-        'Entered sent quantity exceeds what is actually outstanding at the roastery (' + atRoastery.toFixed(2) + ' kg). ' +
-        'If the roastery is returning this in installments, enter only the portion for this receipt.'
+        'الكمية المستلمة أكبر من إجمالي المتبقي فعلياً عند المحمصة (' + atRoastery.toFixed(2) + ' كغ) — ' +
+        'أي أكبر من (إجمالي ما أُرسل - إجمالي ما استُلم سابقاً). / ' +
+        'Received quantity exceeds the total actually outstanding at the roastery (' + atRoastery.toFixed(2) + ' kg) — ' +
+        'i.e. more than (total ever sent − total ever received so far).'
       );
     }
-
-    if (received > sent) {
-      throw new Error('الكمية المستلمة لا يمكن أن تكون أكبر من الكمية المرسلة / Received quantity cannot exceed sent quantity');
-    }
-
-    const waste = sent - received;
-    const wastePercent = sent > 0 ? (waste / sent) * 100 : 0;
 
     const id = appendRow_(SHEETS.RECEIVED_ROASTERY, {
       Date: data.date,
       BatchRef: data.batchRef || '',
-      SentQuantityKg: sent,
       ReceivedQuantityKg: received,
-      WasteKg: waste,
-      WastePercent: Math.round(wastePercent * 100) / 100,
       Notes: data.notes || '',
       EnteredBy: session.username
     });
 
-    writeAudit_(session.username, 'RECEIVED_ROASTERY', id + ' / waste ' + wastePercent.toFixed(2) + '%');
+    // نسبة الهدر الإجمالية (وليست لكل صف) - تُحسب لحظياً من إجمالي الشيتين
+    // بعد إضافة هذا الصف، وتُعرض للمستخدم فوراً كتغذية راجعة مفيدة، رغم أنها
+    // لا تُخزَّن كعمود لأنها قيمة تراكمية متغيّرة وليست خاصية ثابتة لهذا الصف.
+    const totalSentNow = sumSentToRoastery_();
+    const totalReceivedNow = sumReceivedFromRoastery_();
+    const cumulativeWastePercent = totalSentNow > 0
+      ? Math.round(((totalSentNow - totalReceivedNow) / totalSentNow) * 10000) / 100
+      : 0;
+
+    writeAudit_(session.username, 'RECEIVED_ROASTERY', id + ' / ' + received + 'kg / cumulative waste ' + cumulativeWastePercent.toFixed(2) + '%');
     return {
-      success: true, id: id, wasteKg: waste, wastePercent: Math.round(wastePercent * 100) / 100,
-      message: 'تم تسجيل الاستلام. نسبة الهدر: ' + wastePercent.toFixed(2) + '% / Recorded. Waste: ' + wastePercent.toFixed(2) + '%'
+      success: true, id: id, cumulativeWastePercent: cumulativeWastePercent,
+      message: 'تم تسجيل الاستلام. نسبة الهدر الإجمالية حتى الآن: ' + cumulativeWastePercent.toFixed(2) + '% / ' +
+        'Recorded. Cumulative waste so far: ' + cumulativeWastePercent.toFixed(2) + '%'
     };
   });
 }

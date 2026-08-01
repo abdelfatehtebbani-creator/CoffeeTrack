@@ -54,12 +54,12 @@
 - **يُستدعى من**: `Entry.html` → تبويب "إرسال للتحميص".
 
 ### `submitReceivedFromRoastery(token, data)`
-- **الغرض**: تسجيل استلام القهوة المطحونة/المحمصة من التحميص (كلياً أو جزئياً)، مع حساب هدر تلقائي.
-- **Parameters**: `data = {date, batchRef?, sentQuantityKg, receivedQuantityKg, notes?}`.
-- **Return**: `{success: true, id, wasteKg, wastePercent, message}`.
-- **الأخطاء**: حقول مفقودة، كميات غير موجبة، **"الكمية المستلمة أكبر من المرسلة"**، **"الكمية المرسلة المُدخلة أكبر من المتبقي فعلياً عند المحمصة"** (`sentQuantityKg` يُقارَن بـ `getAtRoasteryBalance_()` — راجع docs/Database.md لشرح مفهوم "عند المحمصة الآن" ولماذا `sentQuantityKg` هنا لا يُقرأ تلقائياً من شيت `Sent_to_Roastery`).
+- **الغرض**: تسجيل استلام القهوة المطحونة/المحمصة من التحميص (كلياً أو جزئياً).
+- **Parameters**: `data = {date, batchRef?, receivedQuantityKg, notes?}`. ⚠️ لا يوجد `sentQuantityKg` — حُذف عمداً (راجع `CLAUDE.md` §4.2).
+- **Return**: `{success: true, id, cumulativeWastePercent, message}` — `cumulativeWastePercent` نسبة الهدر **الإجمالية** حتى الآن (وليست لهذا الصف تحديداً)، تُحسب لحظياً من مقارنة إجمالي شيتي `Sent_to_Roastery` و`Received_from_Roastery`.
+- **الأخطاء**: حقول مفقودة، `receivedQuantityKg` ≤ 0، **"الكمية المستلمة أكبر من إجمالي المتبقي فعلياً عند المحمصة"** (`receivedQuantityKg` يُقارَن مباشرة بـ `getAtRoasteryBalance_()`).
 - **يُستدعى من**: `Entry.html` → تبويب "استلام من التحميص".
-- **ملاحظة مهمة**: `sentQuantityKg` هنا يمثّل "الجزء من الحبوب الخام الذي يقابل هذا الاستلام تحديداً"، وليس بالضرورة كمية عملية إرسال واحدة. يدعم هذا تجزئة المحمصة للدفعة العائدة (عدة صفوف استلام لإرسال واحد) ودمجها (صف استلام واحد يقابل عدة إرسالات مخلوطة)، طالما بقي المجموع الكلي متوافقاً مع رصيد "عند المحمصة".
+- **ملاحظة مهمة (قرار تصميمي)**: لا يُطلَب من المستخدم تقدير "الكمية المرسلة" لكل صف، لأن المحمصة قد تُجزّئ أو تخلط الدفعات فلا يمكن معرفة ذلك بدقة. الحماية من الإدخال الخاطئ تتم على المستوى التراكمي فقط: إجمالي كل الاستلامات لا يمكن أن يتجاوز إجمالي كل الإرسالات. راجع `docs/Database.md` (قسم "قرار تصميمي" في شيت `Received_from_Roastery`) للتفاصيل الكاملة.
 
 ### `submitPackingProcess(token, data)`
 - **الغرض**: تسجيل تحويل قهوة محمصة (كغ) إلى أكياس 200غ، مع حساب هدر التعبئة.
@@ -109,8 +109,8 @@
 - **Return**: `{rows: [...], totalsByType: {type: kg}, grandTotalKg, atRoasteryKg}` — `atRoasteryKg` غير مفلتَر بالتاريخ (رصيد لحظي).
 
 ### `reportReceivedFromRoastery(token, fromDate?, toDate?)`
-- **الغرض**: تفصيل الكميات المستلمة بعد التحميص + نسبة الهدر الإجمالية.
-- **Return**: `{rows: [...], totals: {sentKg, receivedKg, wasteKg, wastePercent}}`.
+- **الغرض**: تفصيل الكميات المستلمة بعد التحميص + نسبة الهدر **الإجمالية** لكامل الفترة (وليست لكل صف — راجع `CLAUDE.md` §4.2).
+- **Return**: `{rows: [{date, batchRef, receivedKg, notes, enteredBy}, ...], totals: {sentKg, receivedKg, wasteKg, wastePercent}}` — `totals.sentKg` يأتي من مقارنة مستقلة بإجمالي شيت `Sent_to_Roastery` ضمن نفس الفترة، وليس من عمود داخل `Received_from_Roastery`.
 
 ### `reportRoastedAvailable(token)`
 - **الغرض**: الكمية المحمصة المتوفرة حالياً في المخزون (رصيد فعلي لحظي — لا يقبل فلتر تاريخ عمداً).

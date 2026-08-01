@@ -53,10 +53,18 @@
 | العمود | الوصف |
 |---|---|
 | `ID` | `REC-000001` |
-| `SentQuantityKg` | الكمية المرسلة (تُدخَل يدوياً لكل دفعة، وليست مشتقة تلقائياً من `Sent_to_Roastery`) |
-| `ReceivedQuantityKg` | الكمية الفعلية المستلمة، يجب ≤ `SentQuantityKg` |
-| `WasteKg` | = `SentQuantityKg - ReceivedQuantityKg` (محسوب تلقائياً، **مخزَّن** لتسريع التقارير) |
-| `WastePercent` | = `WasteKg / SentQuantityKg * 100` (محسوب تلقائياً، مخزَّن) |
+| `SentQuantityKg` | ⚠️ **تاريخي فقط** — كان يُدخَل يدوياً لكل صف قبل قرار تصميمي لاحق (راجع أدناه). الصفوف الجديدة تتركه فارغاً؛ العمود بقي في الشيت للحفاظ على بيانات الصفوف القديمة فقط. |
+| `ReceivedQuantityKg` | الكمية الفعلية المستلمة (الحقل الوحيد المطلوب فعلياً الآن) |
+| `WasteKg` | ⚠️ **تاريخي فقط** — نفس ملاحظة `SentQuantityKg` أعلاه. الهدر يُحسب الآن إجمالياً فقط (راجع أدناه)، وليس لكل صف. |
+| `WastePercent` | ⚠️ **تاريخي فقط** — نفس الملاحظة. |
+
+### ⚠️ قرار تصميمي: لا هدر لكل صف — الهدر إجمالي فقط
+بعد نقاش مع فريق العمل، تقرر **حذف الإدخال اليدوي لـ"الكمية المرسلة" من نموذج الاستلام**. السبب: المحمصة قد تُجزّئ أو تخلط الدفعات، فتخمين "أي جزء من المرسل يقابل هذا الاستلام تحديداً" غير موثوق وغير ممكن معرفته بدقة في الواقع. الأهم: **نسبة الهدر الإجمالية لا تتأثر بهذا الحذف إطلاقاً** — لأنها تُحسب بمقارنة مباشرة بين إجمالي شيت `Sent_to_Roastery` وإجمالي شيت `Received_from_Roastery` بالكامل (`reportReceivedFromRoastery()` في `ReportsOperations.gs`)، وهذه المقارنة لا تحتاج أي حقل وسيط يدوي.
+
+**التحقق الصارم الجديد** (بديل مبسّط وأدق من السابق):
+> **إجمالي كل `ReceivedQuantityKg` المُدخلة تراكمياً في `Received_from_Roastery` لا يمكن أن يتجاوز إجمالي `QuantityKg` في `Sent_to_Roastery`.**
+
+هذا الفرق (`Sent_to_Roastery` الإجمالي ناقص `Received_from_Roastery` الإجمالي) هو **"الرصيد المتبقي عند المحمصة"** (`getAtRoasteryBalance_()`)، ويُعرَض كمؤشر KPI حي في صفحة الإدخال وفي تقرير "الكميات المرسلة للتحميص"، ويُستخدم كحد أقصى صارم عند كل عملية استلام جديدة — بلا أي تخمين يدوي مطلوب من المستخدم، وصحيح بغض النظر عن كيفية تجزئة/دمج المحمصة للدفعات.
 
 ## 6) `Packing_Process` — التعبئة والتغليف
 | العمود | الوصف |
@@ -97,7 +105,7 @@
 
 ```
 getRawStockBalance_(type)     = Σ RawMaterial_Received.QuantityKg(type) − Σ Sent_to_Roastery.QuantityKg(type)
-getAtRoasteryBalance_()       = Σ Sent_to_Roastery.QuantityKg − Σ Received_from_Roastery.SentQuantityKg
+getAtRoasteryBalance_()       = Σ Sent_to_Roastery.QuantityKg − Σ Received_from_Roastery.ReceivedQuantityKg
 getRoastedStockBalance_()     = Σ Received_from_Roastery.ReceivedQuantityKg − Σ Packing_Process.InputQuantityKg
 getPackingInProgressBags_()   = Σ Packing_Process.BagsProduced − Σ Finished_Products.BagsAdded
 getFinishedStockBalance_()    = Σ Finished_Products.BagsAdded − Σ Deliveries.BagsDelivered
@@ -105,24 +113,12 @@ getFinishedStockBalance_()    = Σ Finished_Products.BagsAdded − Σ Deliveries
 
 `BatchRef` هو حقل نصي حر (وليس مفتاح صارم) يُستخدم لربط الدفعات يدوياً بين المراحل عند الحاجة للتتبع — لا يُفرض تفرّده حالياً برمجياً.
 
-### ⚠️ مفهوم "عند المحمصة الآن" (`getAtRoasteryBalance_`) — مهم لفهم `Received_from_Roastery.SentQuantityKg`
-عمود `SentQuantityKg` في شيت `Received_from_Roastery` **يُدخَل يدوياً** لكل صف استلام، ولا يُقرأ تلقائياً من شيت `Sent_to_Roastery`. السبب: المحمصة لا تُلزَم بإرجاع كل دفعة مرسلة دفعة واحدة — قد تُجزّئها على عدة استلامات، أو تخلط عدة إرسالات وترجعها كدفعة محمصة واحدة. لذلك النظام يتحقق من قاعدة أعم وأدق:
-
-> **مجموع كل `SentQuantityKg` المُدخلة تراكمياً في `Received_from_Roastery` لا يمكن أن يتجاوز مجموع `QuantityKg` في `Sent_to_Roastery`.**
-
-هذا الفرق (`Sent_to_Roastery` الإجمالي ناقص `Received_from_Roastery.SentQuantityKg` الإجمالي) هو **"الرصيد المتبقي عند المحمصة"**، ويُعرَض كمؤشر KPI حي في صفحة الإدخال وفي تقرير "الكميات المرسلة للتحميص"، ويُستخدم كحد أقصى صارم عند كل عملية استلام جديدة (`submitReceivedFromRoastery` في `EntryOperations.gs`).
-
-**أمثلة سيناريوهات مدعومة بهذا النموذج** (راجع أيضاً شرح تفصيلي في المحادثة مع المستخدم / سجل الدعم):
-- إرسال دفعة واحدة → استلام دفعة واحدة (1:1 بسيط).
-- إرسال دفعة واحدة → استلام على عدة دفعات (تجزئة) — كل صف استلام يحمل جزءاً من `SentQuantityKg`، والمجموع يجب أن يساوي الكمية المرسلة الأصلية.
-- إرسال عدة دفعات (حتى بأصناف مختلفة) → استلام دفعة محمصة واحدة مخلوطة — صف استلام واحد بـ`SentQuantityKg` يساوي مجموع الإرسالات المخلوطة.
-
 ## قواعد التحقق (Validation Rules) — ملخص
 | العملية | القاعدة |
 |---|---|
 | كل الكميات | يجب أن تكون رقماً موجباً (`> 0`)، عدا `BagsProduced` الذي يقبل `≥ 0` |
 | `Sent_to_Roastery` | `QuantityKg ≤` رصيد الحبوب الخام المتوفر لنفس الصنف |
-| `Received_from_Roastery` | `SentQuantityKg ≤` الرصيد المتبقي "عند المحمصة الآن" (`getAtRoasteryBalance_()`) **و** `ReceivedQuantityKg ≤ SentQuantityKg` |
+| `Received_from_Roastery` | `ReceivedQuantityKg ≤` الرصيد المتبقي "عند المحمصة الآن" (`getAtRoasteryBalance_()` = إجمالي المرسل − إجمالي المستلم سابقاً) — راجع القسم أعلاه لتفاصيل هذا القرار التصميمي |
 | `Packing_Process` | `InputQuantityKg ≤` رصيد القهوة المحمصة المتوفرة |
 | `Finished_Products` | `BagsAdded ≤` عدد الأكياس المتوفرة في طور التعبئة |
 | `Deliveries` | `BagsDelivered ≤` المخزون الجاهز المتاح فعلياً للتسليم (`getFinishedStockBalance_()`) |

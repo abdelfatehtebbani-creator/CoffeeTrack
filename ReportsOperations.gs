@@ -60,17 +60,23 @@ function reportSentToRoastery(token, fromDate, toDate) {
   };
 }
 
-/** 3) تفصيل الكميات المستلمة بعد التحميص مع حساب نسبة الهدر */
+/** 3) تفصيل الكميات المستلمة بعد التحميص + نسبة الهدر الإجمالية (وليست لكل صف) */
 function reportReceivedFromRoastery(token, fromDate, toDate) {
   requireRole_(token, reportRoles_());
-  const rows = filterByDateRange_(readSheetAsObjects_(SHEETS.RECEIVED_ROASTERY), fromDate, toDate);
-  const totalSent = sumField_(rows, 'SentQuantityKg');
-  const totalReceived = sumField_(rows, 'ReceivedQuantityKg');
+  const receivedRows = filterByDateRange_(readSheetAsObjects_(SHEETS.RECEIVED_ROASTERY), fromDate, toDate);
+  const totalReceived = sumField_(receivedRows, 'ReceivedQuantityKg');
+
+  // نسبة الهدر الإجمالية تُحسب بمقارنة إجمالي شيت "الإرسال" بإجمالي شيت
+  // "الاستلام" مباشرة (ضمن نفس الفترة المفلترة إن وُجدت) - وليس من عمود
+  // SentQuantityKg اليدوي القديم (أصبح تاريخياً فقط لصفوف قديمة قبل هذا
+  // التغيير). هذا أدق ولا يحتاج أي تخمين يدوي لكل صف. راجع CLAUDE.md §4.2.
+  const sentRows = filterByDateRange_(readSheetAsObjects_(SHEETS.SENT_ROASTERY), fromDate, toDate);
+  const totalSent = sumField_(sentRows, 'QuantityKg');
   const totalWaste = totalSent - totalReceived;
+
   return {
-    rows: rows.map(r => ({
-      date: r.Date, batchRef: r.BatchRef, sentKg: r.SentQuantityKg, receivedKg: r.ReceivedQuantityKg,
-      wasteKg: r.WasteKg, wastePercent: r.WastePercent, enteredBy: r.EnteredBy
+    rows: receivedRows.map(r => ({
+      date: r.Date, batchRef: r.BatchRef, receivedKg: r.ReceivedQuantityKg, notes: r.Notes, enteredBy: r.EnteredBy
     })),
     totals: {
       sentKg: totalSent,

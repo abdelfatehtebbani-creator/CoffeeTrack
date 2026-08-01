@@ -32,36 +32,46 @@
     </div>
 
     <!-- نشاط اليوم -->
-    <div class="card" id="todayActivityCard">
+    <div class="card card-accent-orange" id="todayActivityCard">
       <div class="card-title"><span class="dot"></span>
         <span class="i18n" data-ar="نشاط اليوم" data-en="Today's Activity">نشاط اليوم</span>
       </div>
       <div class="kpi-grid" id="todayActivityGrid"></div>
     </div>
 
-    <!-- KPI Dashboard -->
-    <div class="kpi-grid" id="kpiGrid"></div>
+    <!-- الأرصدة الحالية -->
+    <div class="card card-accent-gold" id="balanceCard">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="الأرصدة الحالية" data-en="Current Balances">الأرصدة الحالية</span>
+      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+    </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="raw" onclick="showTab('raw')">
-        <span class="i18n" data-ar="استلام من المورد" data-en="Received from Supplier">استلام من المورد</span>
-      </button>
-      <button class="tab-btn" data-tab="sent" onclick="showTab('sent')">
-        <span class="i18n" data-ar="إرسال للتحميص" data-en="Sent to Roastery">إرسال للتحميص</span>
-      </button>
-      <button class="tab-btn" data-tab="received" onclick="showTab('received')">
-        <span class="i18n" data-ar="استلام من التحميص" data-en="Received from Roastery">استلام من التحميص</span>
-      </button>
-      <button class="tab-btn" data-tab="packing" onclick="showTab('packing')">
-        <span class="i18n" data-ar="التعبئة والتغليف" data-en="Packing">التعبئة والتغليف</span>
-      </button>
-      <button class="tab-btn" data-tab="finished" onclick="showTab('finished')">
-        <span class="i18n" data-ar="منتج نهائي جاهز" data-en="Finished Product">منتج نهائي جاهز</span>
-      </button>
-      <button class="tab-btn" data-tab="delivery" onclick="showTab('delivery')">
-        <span class="i18n" data-ar="تسليم" data-en="Delivery">تسليم</span>
-      </button>
+    <!-- نوع العملية -->
+    <div class="card card-accent-beige" id="operationsCard">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="نوع العملية" data-en="Operation Type">نوع العملية</span>
+      </div>
+      <div class="tabs" style="margin-bottom:0">
+        <button class="tab-btn active" data-tab="raw" onclick="showTab('raw')">
+          <span class="i18n" data-ar="استلام من المورد" data-en="Received from Supplier">استلام من المورد</span>
+        </button>
+        <button class="tab-btn" data-tab="sent" onclick="showTab('sent')">
+          <span class="i18n" data-ar="إرسال للتحميص" data-en="Sent to Roastery">إرسال للتحميص</span>
+        </button>
+        <button class="tab-btn" data-tab="received" onclick="showTab('received')">
+          <span class="i18n" data-ar="استلام من التحميص" data-en="Received from Roastery">استلام من التحميص</span>
+        </button>
+        <button class="tab-btn" data-tab="packing" onclick="showTab('packing')">
+          <span class="i18n" data-ar="التعبئة والتغليف" data-en="Packing">التعبئة والتغليف</span>
+        </button>
+        <button class="tab-btn" data-tab="finished" onclick="showTab('finished')">
+          <span class="i18n" data-ar="منتج نهائي جاهز" data-en="Finished Product">منتج نهائي جاهز</span>
+        </button>
+        <button class="tab-btn" data-tab="delivery" onclick="showTab('delivery')">
+          <span class="i18n" data-ar="تسليم" data-en="Delivery">تسليم</span>
+        </button>
+      </div>
     </div>
 
     <!-- ===== FORM 1: Raw Received ===== -->

@@ -4,6 +4,10 @@
   :root{
     --brand-orange:#E8712F;
     --brand-orange-dark:#C85A1F;
+    --brand-gold:#C9A227;
+    --brand-gold-dark:#A9860F;
+    --brand-beige:#C7A97A;
+    --brand-beige-dark:#A9885C;
     --brand-brown:#4A2C1D;
     --brand-brown-dark:#2E1B12;
     --brand-cream:#FBF3EA;
@@ -83,6 +87,17 @@
   .kpi .kpi-label{ font-size:12px; color:var(--text-muted); font-weight:600; margin-bottom:6px; }
   .kpi .kpi-value{ font-size:22px; font-weight:800; color:var(--brand-brown-dark); }
   .kpi .kpi-sub{ font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+  /* ===== Framing cards (تجميع بطاقات/أزرار داخل إطار بلون مميز) ===== */
+  .card-accent-orange{ border-inline-start:6px solid var(--brand-orange); }
+  .card-accent-gold{ border-inline-start:6px solid var(--brand-gold); }
+  .card-accent-beige{ border-inline-start:6px solid var(--brand-beige); }
+  .card-accent-orange .card-title .dot{ background:var(--brand-orange); }
+  .card-accent-gold .card-title .dot{ background:var(--brand-gold); }
+  .card-accent-beige .card-title .dot{ background:var(--brand-beige); }
+
+  /* بطاقات الرصيد الصغيرة داخل إطارها الذهبي تتحوّل هي أيضاً من برتقالي إلى ذهبي */
+  #balanceCard .kpi{ border-inline-start-color:var(--brand-gold); }
 
   /* ===== Tabs (Entry page) ===== */
   .tabs{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }

@@ -321,7 +321,9 @@
       // ----- 1 -----
       document.getElementById('r1-totals').innerHTML =
         Object.keys(data.rawReceived.totalsByType).map(t => kpi_(t + ' (كغ)', t + ' (kg)', data.rawReceived.totalsByType[t])).join('')
-        + kpi_('الإجمالي (كغ)', 'Grand Total (kg)', data.rawReceived.grandTotalKg);
+        + kpi_('الإجمالي (كغ)', 'Grand Total (kg)', data.rawReceived.grandTotalKg)
+        + Object.keys(data.rawReceived.currentStockByType).map(t => kpi_('المتوفر حالياً - ' + t + ' (كغ)', 'Currently Available - ' + t + ' (kg)', data.rawReceived.currentStockByType[t])).join('')
+        + kpi_('إجمالي المتوفر حالياً (كغ)', 'Total Currently Available (kg)', data.rawReceived.currentStockGrandTotal);
       document.getElementById('r1-body').innerHTML = data.rawReceived.rows.map(r => `
         <tr><td>${fmtDate_(r.date)}</td><td>${r.coffeeType}</td><td>${r.quantityKg}</td><td>${r.supplier||''}</td><td>${r.enteredBy}</td></tr>
       `).join('') || emptyRow_(5);

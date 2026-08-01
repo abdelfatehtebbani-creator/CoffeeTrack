@@ -100,8 +100,8 @@
 **فلترة بنطاق تاريخ (`fromDate`/`toDate`)**: التقارير 1, 2, 3, 5, 6, 7 تقبل باراميترين اختياريين إضافيين، نص بصيغة `'yyyy-MM-dd'` أو `''` لعدم الفلترة — تُستخدم لعزل فترة زمنية محددة (مثلاً الدفعة الحديثة فقط، مستبعدةً رصيداً افتتاحياً قديماً). التقرير 4 استثناء متعمَّد (لا يقبلهما) لأنه يعرض رصيداً فعلياً لحظياً وليس مجموعاً على فترة.
 
 ### `reportRawReceivedByType(token, fromDate?, toDate?)`
-- **الغرض**: تفصيل الكميات المستلمة من المورد حسب الصنف.
-- **Return**: `{rows: [...], totalsByType: {type: kg}, grandTotalKg}`.
+- **الغرض**: تفصيل الكميات المستلمة من المورد حسب الصنف + الرصيد الفعلي المتوفر حالياً.
+- **Return**: `{rows: [...], totalsByType: {type: kg}, grandTotalKg, currentStockByType: {type: kg}, currentStockGrandTotal}` — `currentStockByType`/`currentStockGrandTotal` رصيد لحظي حقيقي (غير مفلتَر بالتاريخ عمداً، كبقية الأرصدة اللحظية في المشروع).
 - **يُستدعى من**: `Reports.html` (ضمن `getAllReports`).
 
 ### `reportSentToRoastery(token, fromDate?, toDate?)`

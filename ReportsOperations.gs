@@ -40,10 +40,18 @@ function filterByDateRange_(rows, fromDate, toDate) {
 function reportRawReceivedByType(token, fromDate, toDate) {
   requireRole_(token, reportRoles_());
   const rows = filterByDateRange_(readSheetAsObjects_(SHEETS.RAW_RECEIVED), fromDate, toDate);
+  const cfg = getConfigMap_();
+  const type1 = cfg.CoffeeType1, type2 = cfg.CoffeeType2;
+  const stock1 = Math.round(getRawStockBalance_(type1) * 1000) / 1000;
+  const stock2 = Math.round(getRawStockBalance_(type2) * 1000) / 1000;
   return {
     rows: rows.map(r => ({ date: r.Date, coffeeType: r.CoffeeType, quantityKg: r.QuantityKg, supplier: r.Supplier, enteredBy: r.EnteredBy })),
     totalsByType: groupSum_(rows, 'CoffeeType', 'QuantityKg'),
-    grandTotalKg: sumField_(rows, 'QuantityKg')
+    grandTotalKg: sumField_(rows, 'QuantityKg'),
+    // المتوفر حالياً بالمخزن لكل صنف - رصيد لحظي حقيقي (غير مفلتَر بالتاريخ عمداً،
+    // كبقية الأرصدة اللحظية في المشروع: atRoasteryKg, roastedAvailable, إلخ).
+    currentStockByType: { [type1]: stock1, [type2]: stock2 },
+    currentStockGrandTotal: Math.round((stock1 + stock2) * 1000) / 1000
   };
 }
 

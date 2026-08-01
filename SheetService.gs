@@ -46,12 +46,18 @@ function readSheetAsObjects_(sheetName) {
     const obj = { _row: idx + 2 }; // actual sheet row number, useful for updates
     headers.forEach((h, i) => {
       let v = row[i];
-      // مهم جداً: نحوّل أي كائن Date حقيقي (كما تُقرأ حقول التاريخ من الشيت
-      // تلقائياً) إلى نص ISO فوراً هنا. جسر google.script.run الداخلي يفشل
-      // بصمت (يُرجع null للعميل بلا أي خطأ) عند إرجاع كائنات Date حقيقية
-      // متداخلة داخل مصفوفات كبيرة عبر return عادي - تم تشخيص هذا فعلياً
-      // وإصلاحه هنا. راجع CLAUDE.md §8.4 لتفاصيل كاملة.
-      if (v instanceof Date) v = v.toISOString();
+      // مهم جداً (نقطتان معاً هنا):
+      // 1) جسر google.script.run الداخلي يفشل بصمت (يُرجع null للعميل بلا أي
+      //    خطأ) عند إرجاع كائنات Date حقيقية متداخلة داخل مصفوفات كبيرة عبر
+      //    return عادي - لذا يجب تحويلها لنص دائماً قبل إرجاعها. راجع CLAUDE.md §8.4.
+      // 2) لا تستخدم v.toISOString() لهذا التحويل! هذه الدالة تحوّل إلى UTC،
+      //    بينما تاريخ الشيت مخزَّن كمنتصف ليل بتوقيت المشروع (Asia/Qatar,
+      //    UTC+3) - فيُرجع toISOString() اليوم السابق (مثال: تاريخ الشيت
+      //    2026-06-29 يصبح "2026-06-28T21:00:00.000Z"). هذا خلل حقيقي ظهر في
+      //    الإنتاج (كل التواريخ تأخرت يوماً كاملاً). الحل: تنسيق التاريخ محلياً
+      //    بتوقيت المشروع مباشرة كنص 'yyyy-MM-dd' (تاريخ تقويمي فقط، بلا وقت -
+      //    وهو كل ما تحتاجه أعمدة Date في هذا المشروع أصلاً).
+      if (v instanceof Date) v = Utilities.formatDate(v, Session.getScriptTimeZone() || 'Asia/Qatar', 'yyyy-MM-dd');
       obj[h] = v;
     });
     return obj;

@@ -202,21 +202,33 @@ function sumReceivedFromRoastery_() {
     .reduce((s, r) => s + (Number(r.ReceivedQuantityKg) || 0), 0);
 }
 
+/** Total kg "reconciled" via the auto-estimated SentQuantityKg field (see getAtRoasteryBalance_). */
+function sumReceivedFromRoasterySentField_() {
+  return readSheetAsObjects_(SHEETS.RECEIVED_ROASTERY)
+    .reduce((s, r) => s + (Number(r.SentQuantityKg) || 0), 0);
+}
+
 /**
  * الكمية الخام المرسلة للتحميص ولم تُرجَع بعد كمنتج محمص ("عند المحمصة حالياً").
- * = إجمالي ما أُرسل على الإطلاق - إجمالي ما استُلم على الإطلاق.
+ * = إجمالي ما أُرسل على الإطلاق - إجمالي ما "تمّت تسويته" عبر التقدير التلقائي
+ * لعمود SentQuantityKg (راجع submitReceivedFromRoastery في EntryOperations.gs).
  *
- * ملاحظة تصميمية مهمة: كانت هذه الدالة تعتمد سابقاً على حقل يدوي
- * (SentQuantityKg) يُدخِله المستخدم في كل صف استلام لتقدير "أي جزء من
- * المرسل يقابل هذا الاستلام تحديداً". حُذف هذا الحقل من نموذج الإدخال
- * لأنه في الواقع تخمين غير موثوق (المحمصة قد تُجزّئ أو تخلط الدفعات، فلا
- * يمكن معرفة الكمية المُستخدَمة فعلياً لإنتاج استلام معيّن). الحساب الحالي
- * أبسط وأدق: مقارنة مباشرة بين إجمالي شيتي Sent_to_Roastery و
- * Received_from_Roastery بالكامل - لا يحتاج أي تخمين يدوي لكل صف، ويبقى
- * صحيحاً بغض النظر عن كيفية تجزئة/دمج المحمصة للدفعات.
+ * ⚠️ ملاحظة تصميمية مهمة (تاريخ القرارات، حتى لا يتكرر نفس الخطأ):
+ * جُرِّب سابقاً حساب هذا الرصيد بمقارنة إجمالي الشيتين مباشرة
+ * (Σ Sent - Σ Received.ReceivedQuantityKg) بهدف تبسيط النموذج وتفادي تخمين
+ * المستخدم اليدوي لـ"الكمية المرسلة". لكن تبيّن أن هذا **خطأ فعلي** ظهر في
+ * الإنتاج: الفرق (Σ Sent - Σ Received) يخلط بين "خام لا يزال فعلياً عند
+ * المحمصة" و"هدر تراكمي من دفعات اكتملت بالفعل" - فمثلاً إرسال 100كغ
+ * واستلامها بالكامل 88كغ (هدر طبيعي 12%) يجب أن يُصفّر الرصيد (لا شيء متبقٍ
+ * فعلياً)، لكن تلك الصيغة كانت تُبقيه عالقاً عند 12كغ وهمية للأبد.
+ * الحل الحالي: SentQuantityKg يُقدَّر تلقائياً عند كل استلام عبر متوسط نسبة
+ * الهدر (Config.AverageRoastingWastePercent) بدل تخمين المستخدم اليدوي -
+ * هذا يُصفّر الرصيد بشكل صحيح تلقائياً مع بقاء العملية بسيطة (المستخدم يُدخل
+ * الكمية المستلمة فقط). لا تُعِد الصيغة المبسّطة القديمة (Sent - Received)
+ * دون نقاش صريح، فقد ثبت خطؤها فعلياً.
  */
 function getAtRoasteryBalance_() {
-  return sumSentToRoastery_() - sumReceivedFromRoastery_();
+  return sumSentToRoastery_() - sumReceivedFromRoasterySentField_();
 }
 
 /** Total kg sent into packing (input side). */

@@ -76,7 +76,7 @@ function submitSentToRoastery(token, data) {
   });
 }
 
-/** 3) Ground Coffee Received from the Roastery (waste is auto-calculated) */
+/** 3) Ground Coffee Received from the Roastery - "الكمية المرسلة" تُقدَّر تلقائياً من متوسط الهدر */
 function submitReceivedFromRoastery(token, data) {
   const session = requireRole_(token, entryRoles_());
   validateRequired_(data, ['date', 'receivedQuantityKg']);
@@ -85,43 +85,62 @@ function submitReceivedFromRoastery(token, data) {
   return withLock_(function() {
     const received = Number(data.receivedQuantityKg);
 
-    // تحقق صارم مبسّط (بلا حاجة لتخمين "الكمية المرسلة" يدوياً لكل صف):
-    // إجمالي كل ما استُلم على الإطلاق (بعد هذا الصف) لا يمكن أن يتجاوز إجمالي
-    // كل ما أُرسل على الإطلاق - مقارنة مباشرة بين شيتي الإرسال والاستلام
-    // بالكامل، صحيحة بغض النظر عن كيفية تجزئة/دمج المحمصة للدفعات.
-    // راجع CLAUDE.md §4.2 وdocs/Database.md لتفاصيل هذا القرار التصميمي.
+    // نقدّر "الكمية المرسلة" التي تقابل هذا الاستلام تلقائياً، بدل تخمين
+    // المستخدم لها يدوياً - عبر متوسط نسبة الهدر العام المُعتمَد في Config
+    // (يُحدَّث دورياً من طرف المستخدم ليطابق الواقع، راجع docs/Database.md).
+    // مثال: استُلم 88كغ ومتوسط الهدر 12% → الكمية المرسلة المقدَّرة = 88/0.88 = 100كغ.
+    const avgWastePercent = Number(getConfigMap_().AverageRoastingWastePercent || 12);
+    const safeAvgWastePercent = (avgWastePercent >= 0 && avgWastePercent < 100) ? avgWastePercent : 12;
+    const estimatedSent = received / (1 - safeAvgWastePercent / 100);
+
+    // تحقق صارم: الكمية المرسلة المقدَّرة لا يمكن أن تتجاوز الرصيد المتبقي
+    // فعلياً عند المحمصة. بما أن التقدير يعتمد على متوسط واقعي، يُصفّر هذا
+    // الرصيد تلقائياً وبشكل صحيح مع اكتمال كل دفعة - بخلاف محاولة سابقة
+    // (مقارنة إجمالي الشيتين مباشرة) ثبت أنها تُبقي "هدراً وهمياً" عالقاً
+    // للأبد حتى بعد اكتمال الاستلام فعلياً. راجع CLAUDE.md §4.2 (نسخته المحدَّثة).
     const atRoastery = getAtRoasteryBalance_();
-    if (received > atRoastery) {
+    if (estimatedSent > atRoastery) {
       throw new Error(
-        'الكمية المستلمة أكبر من إجمالي المتبقي فعلياً عند المحمصة (' + atRoastery.toFixed(2) + ' كغ) — ' +
-        'أي أكبر من (إجمالي ما أُرسل - إجمالي ما استُلم سابقاً). / ' +
-        'Received quantity exceeds the total actually outstanding at the roastery (' + atRoastery.toFixed(2) + ' kg) — ' +
-        'i.e. more than (total ever sent − total ever received so far).'
+        'الكمية المستلمة (بعد تقدير مقابلها المرسل بمتوسط هدر ' + safeAvgWastePercent + '%) ' +
+        'تتجاوز الرصيد المتبقي فعلياً عند المحمصة (' + atRoastery.toFixed(2) + ' كغ). ' +
+        'إن كان الهدر الفعلي لهذه الدفعة أعلى من المتوسط المُعتمَد، حدّث النسبة في شيت Config. / ' +
+        'The received quantity (after estimating its sent-equivalent at ' + safeAvgWastePercent + '% average waste) ' +
+        'exceeds what is actually outstanding at the roastery (' + atRoastery.toFixed(2) + ' kg). ' +
+        'If this batch\'s actual waste is higher than the configured average, update the percentage in the Config sheet.'
       );
     }
+
+    const wasteKgEstimate = estimatedSent - received;
 
     const id = appendRow_(SHEETS.RECEIVED_ROASTERY, {
       Date: data.date,
       BatchRef: data.batchRef || '',
+      SentQuantityKg: Math.round(estimatedSent * 1000) / 1000,
       ReceivedQuantityKg: received,
+      WasteKg: Math.round(wasteKgEstimate * 1000) / 1000,
+      WastePercent: safeAvgWastePercent,
       Notes: data.notes || '',
       EnteredBy: session.username
     });
 
-    // نسبة الهدر الإجمالية (وليست لكل صف) - تُحسب لحظياً من إجمالي الشيتين
-    // بعد إضافة هذا الصف، وتُعرض للمستخدم فوراً كتغذية راجعة مفيدة، رغم أنها
-    // لا تُخزَّن كعمود لأنها قيمة تراكمية متغيّرة وليست خاصية ثابتة لهذا الصف.
+    // نسبة الهدر الإجمالية **الحقيقية** (وليست التقديرية) - تُحسب من مقارنة
+    // مباشرة بين إجمالي الشيتين الفعليين، بمعزل تام عن أي تقدير. هذه تبقى
+    // دقيقة 100% دائماً بغض النظر عن دقة متوسط الهدر المُعتمَد أعلاه.
     const totalSentNow = sumSentToRoastery_();
     const totalReceivedNow = sumReceivedFromRoastery_();
-    const cumulativeWastePercent = totalSentNow > 0
+    const actualCumulativeWastePercent = totalSentNow > 0
       ? Math.round(((totalSentNow - totalReceivedNow) / totalSentNow) * 10000) / 100
       : 0;
 
-    writeAudit_(session.username, 'RECEIVED_ROASTERY', id + ' / ' + received + 'kg / cumulative waste ' + cumulativeWastePercent.toFixed(2) + '%');
+    writeAudit_(session.username, 'RECEIVED_ROASTERY', id + ' / received ' + received + 'kg / estimated sent ' + estimatedSent.toFixed(2) + 'kg');
     return {
-      success: true, id: id, cumulativeWastePercent: cumulativeWastePercent,
-      message: 'تم تسجيل الاستلام. نسبة الهدر الإجمالية حتى الآن: ' + cumulativeWastePercent.toFixed(2) + '% / ' +
-        'Recorded. Cumulative waste so far: ' + cumulativeWastePercent.toFixed(2) + '%'
+      success: true, id: id,
+      estimatedSentKg: Math.round(estimatedSent * 1000) / 1000,
+      actualCumulativeWastePercent: actualCumulativeWastePercent,
+      message: 'تم تسجيل الاستلام. الكمية المرسلة المقابلة (تقديرية): ' + estimatedSent.toFixed(2) + ' كغ. ' +
+        'نسبة الهدر الإجمالية الحقيقية حتى الآن: ' + actualCumulativeWastePercent.toFixed(2) + '% / ' +
+        'Recorded. Estimated corresponding sent quantity: ' + estimatedSent.toFixed(2) + ' kg. ' +
+        'Actual cumulative waste so far: ' + actualCumulativeWastePercent.toFixed(2) + '%'
     };
   });
 }
@@ -264,6 +283,7 @@ function getCurrentBalances(token) {
     packingInProgressBags: getPackingInProgressBags_(),
     finishedBags: sumBagsFinished_(),
     finishedStockAvailable: getFinishedStockBalance_(),
+    avgRoastingWastePercent: Number(cfg.AverageRoastingWastePercent || 12),
     coffeeTypes: [type1, type2]
   };
 }

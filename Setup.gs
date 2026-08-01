@@ -91,6 +91,7 @@ function seedConfig_(ss) {
     ['BagSizeKg', '0.2', 'حجم الكيس الواحد بالكيلوغرام / Bag size in kg'],
     ['CoffeeType1', 'Arabica', 'الصنف الأول / Coffee type 1'],
     ['CoffeeType2', 'Robusta', 'الصنف الثاني / Coffee type 2'],
+    ['AverageRoastingWastePercent', '12', 'متوسط نسبة هدر التحميص المُعتمَد لتقدير "الكمية المرسلة" تلقائياً عند الاستلام - حدّثه دورياً ليطابق الواقع الفعلي (راجع نسبة الهدر الإجمالية الحقيقية في التقارير) / Average roasting waste % used to auto-estimate "Sent Quantity" on receipt - update periodically to match actual observed waste in reports'],
     ['MaxRoastingWastePercent', '20', 'حد تحذير نسبة هدر التحميص / Warning threshold %'],
     ['MaxPackingWastePercent', '5', 'حد تحذير نسبة هدر التعبئة / Warning threshold %']
   ];

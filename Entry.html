@@ -119,11 +119,15 @@
       <div class="card-title"><span class="dot"></span>
         <span class="i18n" data-ar="Ground Coffee Received from the Roastery" data-en="Ground Coffee Received from the Roastery">Ground Coffee Received from the Roastery</span>
       </div>
-      <p class="i18n" style="font-size:12.5px;color:var(--text-muted);margin:-8px 0 16px" data-ar="أدخل فقط الكمية المستلمة فعلياً (لا حاجة لتقدير 'الكمية المرسلة' يدوياً — النظام يتحقق تلقائياً من عدم تجاوز إجمالي المتبقي عند المحمصة). راجع بطاقة 'عند المحمصة الآن' أعلى الصفحة." data-en="Enter only the quantity actually received (no need to manually estimate a 'sent quantity' — the system automatically checks against the total outstanding at the roastery). Check the 'Currently At Roastery' card above.">أدخل فقط الكمية المستلمة فعلياً (لا حاجة لتقدير "الكمية المرسلة" يدوياً — النظام يتحقق تلقائياً من عدم تجاوز إجمالي المتبقي عند المحمصة). راجع بطاقة "عند المحمصة الآن" أعلى الصفحة.</p>
+      <p class="i18n" style="font-size:12.5px;color:var(--text-muted);margin:-8px 0 16px" data-ar="أدخل الكمية المستلمة فقط — 'الكمية المرسلة المقابلة' تُحسب تلقائياً بالاعتماد على متوسط نسبة الهدر المُعتمَد في الإعدادات (Config)، وتُستخدم فقط لتحديث بطاقة 'عند المحمصة الآن'. نسبة الهدر الإجمالية الحقيقية في التقارير تبقى دقيقة دائماً بغض النظر عن هذا التقدير." data-en="Enter only the received quantity — the 'corresponding sent quantity' is auto-estimated from the average waste % configured in Config, and is used only to update the 'Currently At Roastery' card. The true overall waste % in reports always stays accurate regardless of this estimate.">أدخل الكمية المستلمة فقط — "الكمية المرسلة المقابلة" تُحسب تلقائياً بالاعتماد على متوسط نسبة الهدر المُعتمَد في الإعدادات (Config)، وتُستخدم فقط لتحديث بطاقة "عند المحمصة الآن". نسبة الهدر الإجمالية الحقيقية في التقارير تبقى دقيقة دائماً بغض النظر عن هذا التقدير.</p>
       <div class="form-grid">
         <div class="field"><label class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</label><input type="date" id="received_date"></div>
         <div class="field"><label class="i18n" data-ar="رقم الدفعة" data-en="Batch Ref">رقم الدفعة</label><input type="text" id="received_batch"></div>
-        <div class="field"><label class="i18n" data-ar="الكمية المستلمة (كغ)" data-en="Received Quantity (kg)">الكمية المستلمة (كغ)</label><input type="number" step="0.01" id="received_recvQty"></div>
+        <div class="field"><label class="i18n" data-ar="الكمية المستلمة (كغ)" data-en="Received Quantity (kg)">الكمية المستلمة (كغ)</label><input type="number" step="0.01" id="received_recvQty" oninput="updateEstimatedSent_()"></div>
+        <div class="field">
+          <label class="i18n" data-ar="الكمية المرسلة المقابلة (تقديرية، تلقائية)" data-en="Corresponding Sent Qty (auto-estimated)">الكمية المرسلة المقابلة (تقديرية، تلقائية)</label>
+          <input type="text" id="received_sentEstimate" disabled style="background:var(--brand-cream-2);color:var(--text-muted)" value="—">
+        </div>
         <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="received_notes" rows="2"></textarea></div>
       </div>
       <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('received', this)">
@@ -196,6 +200,7 @@
     let COFFEE_TYPES = [];
     let lastBalances_ = null; // نخزّن آخر بيانات مؤشرات لإعادة رسمها عند تبديل اللغة
     let lastTodayActivity_ = null; // نخزّن آخر بيانات نشاط اليوم لنفس السبب
+    let avgWastePercent_ = 12; // متوسط نسبة هدر التحميص، يُحدَّث من الخادم عند كل تحميل
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -251,12 +256,25 @@
       google.script.run
         .withSuccessHandler(function(bal){
           COFFEE_TYPES = bal.coffeeTypes;
+          avgWastePercent_ = bal.avgRoastingWastePercent || 12;
           lastBalances_ = bal;
           populateCoffeeSelects_();
           renderKpis_(bal);
         })
         .withFailureHandler(handleSessionError_)
         .getCurrentBalances(TOKEN);
+    }
+
+    /** معاينة حية (عرض فقط) لتقدير "الكمية المرسلة المقابلة" أثناء الكتابة - القيمة الحقيقية تُحسب على الخادم عند الحفظ. */
+    function updateEstimatedSent_(){
+      const received = Number(document.getElementById('received_recvQty').value);
+      const field = document.getElementById('received_sentEstimate');
+      if (!received || received <= 0 || avgWastePercent_ >= 100) {
+        field.value = '—';
+        return;
+      }
+      const estimated = received / (1 - avgWastePercent_ / 100);
+      field.value = estimated.toFixed(2) + ' ' + (document.body.dir === 'rtl' ? 'كغ (بمتوسط هدر ' : 'kg (at ') + avgWastePercent_ + '%)';
     }
 
     function loadTodayActivity(){
@@ -392,6 +410,8 @@
     function clearPanelInputs_(panel){
       const panelEl = document.getElementById('panel-' + panel);
       panelEl.querySelectorAll('input[type="number"], input[type="text"], textarea').forEach(el => el.value = '');
+      const sentEstimateField = document.getElementById('received_sentEstimate');
+      if (sentEstimateField) sentEstimateField.value = '—';
       setDefaultDates_();
     }
   </script>

@@ -84,7 +84,9 @@ function reportReceivedFromRoastery(token, fromDate, toDate) {
 
   return {
     rows: receivedRows.map(r => ({
-      date: r.Date, batchRef: r.BatchRef, receivedKg: r.ReceivedQuantityKg, notes: r.Notes, enteredBy: r.EnteredBy
+      date: r.Date, batchRef: r.BatchRef, receivedKg: r.ReceivedQuantityKg,
+      estimatedSentKg: r.SentQuantityKg, estimatedWastePercent: r.WastePercent,
+      notes: r.Notes, enteredBy: r.EnteredBy
     })),
     totals: {
       sentKg: totalSent,

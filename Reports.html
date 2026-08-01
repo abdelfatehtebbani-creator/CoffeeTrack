@@ -113,14 +113,15 @@
         <div class="card-title"><span class="dot"></span>
           <span class="i18n" data-ar="3) الكميات المستلمة بعد التحميص ونسبة الهدر الإجمالية" data-en="3) Quantities Received After Roasting & Overall Waste %">3) الكميات المستلمة بعد التحميص ونسبة الهدر الإجمالية</span>
         </div>
-        <p class="i18n" style="font-size:12px;color:var(--text-muted);margin:-4px 0 12px" data-ar="نسبة الهدر إجمالية للفترة المعروضة (مقارنة كل ما أُرسل بكل ما استُلم)، وليست لكل صف على حدة — لأن المحمصة قد تُجزّئ أو تخلط الدفعات فلا يمكن تحديد هدر دقيق لكل استلام منفرد." data-en="Waste % is an overall figure for the shown period (total sent vs. total received), not per row — since the roastery may split or mix batches, an exact per-receipt waste figure isn't meaningful.">نسبة الهدر إجمالية للفترة المعروضة (مقارنة كل ما أُرسل بكل ما استُلم)، وليست لكل صف على حدة — لأن المحمصة قد تُجزّئ أو تخلط الدفعات فلا يمكن تحديد هدر دقيق لكل استلام منفرد.</p>
+        <p class="i18n" style="font-size:12px;color:var(--text-muted);margin:-4px 0 12px" data-ar="نسبة الهدر الإجمالية (البطاقات أعلاه) دقيقة دائماً — مقارنة مباشرة بين إجمالي ما أُرسل وإجمالي ما استُلم. أما عمودا 'المرسل التقديري' و'الهدر التقديري' بالجدول فهما تقدير تلقائي لكل صف بالاعتماد على متوسط الهدر المُعتمَد (Config)، وليسا رقماً مقيساً فعلياً لهذا الصف تحديداً." data-en="The overall waste % (cards above) is always accurate — a direct comparison of total sent vs. total received. The 'Estimated Sent' and 'Estimated Waste' columns in the table are an automatic per-row estimate based on the configured average waste rate, not an actually-measured figure for that specific row.">نسبة الهدر الإجمالية (البطاقات أعلاه) دقيقة دائماً — مقارنة مباشرة بين إجمالي ما أُرسل وإجمالي ما استُلم. أما عمودا "المرسل التقديري" و"الهدر التقديري" بالجدول فهما تقدير تلقائي لكل صف بالاعتماد على متوسط الهدر المُعتمَد (Config)، وليسا رقماً مقيساً فعلياً لهذا الصف تحديداً.</p>
         <div class="kpi-grid" id="r3-totals"></div>
         <div class="table-wrap"><table>
           <thead><tr>
             <th class="i18n" data-ar="التاريخ" data-en="Date">التاريخ</th>
             <th class="i18n" data-ar="الدفعة" data-en="Batch">الدفعة</th>
             <th class="i18n" data-ar="المستلم (كغ)" data-en="Received (kg)">المستلم (كغ)</th>
-            <th class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</th>
+            <th class="i18n" data-ar="المرسل التقديري (كغ)" data-en="Estimated Sent (kg)">المرسل التقديري (كغ)</th>
+            <th class="i18n" data-ar="الهدر التقديري %" data-en="Estimated Waste %">الهدر التقديري %</th>
             <th class="i18n" data-ar="أدخل بواسطة" data-en="Entered By">أدخل بواسطة</th>
           </tr></thead>
           <tbody id="r3-body"></tbody>
@@ -345,8 +346,8 @@
         kpi_('إجمالي الهدر (كغ)', 'Total Waste (kg)', t3.wasteKg) +
         kpi_('نسبة الهدر الإجمالية', 'Overall Waste %', t3.wastePercent + '%');
       document.getElementById('r3-body').innerHTML = data.receivedFromRoastery.rows.map(r => `
-        <tr><td>${fmtDate_(r.date)}</td><td>${r.batchRef||''}</td><td>${r.receivedKg}</td><td>${r.notes||''}</td><td>${r.enteredBy}</td></tr>
-      `).join('') || emptyRow_(5);
+        <tr><td>${fmtDate_(r.date)}</td><td>${r.batchRef||''}</td><td>${r.receivedKg}</td><td>${r.estimatedSentKg || '—'}</td><td>${(r.estimatedWastePercent !== '' && r.estimatedWastePercent !== undefined) ? wasteBadge_(r.estimatedWastePercent) : '—'}</td><td>${r.enteredBy}</td></tr>
+      `).join('') || emptyRow_(6);
 
       // ----- 4 -----
       const r4 = data.roastedAvailable;

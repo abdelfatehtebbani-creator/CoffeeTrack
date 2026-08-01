@@ -17,6 +17,7 @@
 | `BagSizeKg` | `0.2` | حجم الكيس الواحد بالكغ — يُستخدم في `submitPackingProcess` لحساب `ExpectedOutputKg` |
 | `CoffeeType1` | `Arabica` | الصنف الأول |
 | `CoffeeType2` | `Robusta` | الصنف الثاني |
+| `AverageRoastingWastePercent` | `12` | متوسط نسبة هدر التحميص — يُستخدم في `submitReceivedFromRoastery` لتقدير "الكمية المرسلة" تلقائياً. **حدّثه دورياً** ليطابق نسبة الهدر الإجمالية الحقيقية المعروضة في التقارير (راجع قسم شيت `Received_from_Roastery` أعلاه) |
 | `MaxRoastingWastePercent` | `20` | حد تحذيري (غير مُفعَّل حالياً في الواجهة كتنبيه صريح — انظر TODO) |
 | `MaxPackingWastePercent` | `5` | نفس الغرض لمرحلة التعبئة |
 
@@ -53,18 +54,27 @@
 | العمود | الوصف |
 |---|---|
 | `ID` | `REC-000001` |
-| `SentQuantityKg` | ⚠️ **تاريخي فقط** — كان يُدخَل يدوياً لكل صف قبل قرار تصميمي لاحق (راجع أدناه). الصفوف الجديدة تتركه فارغاً؛ العمود بقي في الشيت للحفاظ على بيانات الصفوف القديمة فقط. |
-| `ReceivedQuantityKg` | الكمية الفعلية المستلمة (الحقل الوحيد المطلوب فعلياً الآن) |
-| `WasteKg` | ⚠️ **تاريخي فقط** — نفس ملاحظة `SentQuantityKg` أعلاه. الهدر يُحسب الآن إجمالياً فقط (راجع أدناه)، وليس لكل صف. |
-| `WastePercent` | ⚠️ **تاريخي فقط** — نفس الملاحظة. |
+| `SentQuantityKg` | **محسوب تلقائياً** (وليس مُدخلاً يدوياً) = `ReceivedQuantityKg ÷ (1 − Config.AverageRoastingWastePercent/100)` — راجع القسم أدناه |
+| `ReceivedQuantityKg` | الكمية الفعلية المستلمة — **الحقل الوحيد الذي يُدخله المستخدم يدوياً** في هذا النموذج |
+| `WasteKg` | محسوب تلقائياً = `SentQuantityKg − ReceivedQuantityKg` (تقديري، مبني على متوسط الهدر) |
+| `WastePercent` | محسوب تلقائياً، يساوي دائماً `Config.AverageRoastingWastePercent` وقت الإدخال (بالتعريف الرياضي) |
 
-### ⚠️ قرار تصميمي: لا هدر لكل صف — الهدر إجمالي فقط
-بعد نقاش مع فريق العمل، تقرر **حذف الإدخال اليدوي لـ"الكمية المرسلة" من نموذج الاستلام**. السبب: المحمصة قد تُجزّئ أو تخلط الدفعات، فتخمين "أي جزء من المرسل يقابل هذا الاستلام تحديداً" غير موثوق وغير ممكن معرفته بدقة في الواقع. الأهم: **نسبة الهدر الإجمالية لا تتأثر بهذا الحذف إطلاقاً** — لأنها تُحسب بمقارنة مباشرة بين إجمالي شيت `Sent_to_Roastery` وإجمالي شيت `Received_from_Roastery` بالكامل (`reportReceivedFromRoastery()` في `ReportsOperations.gs`)، وهذه المقارنة لا تحتاج أي حقل وسيط يدوي.
+### ⚠️ "الكمية المرسلة" تُقدَّر تلقائياً من متوسط الهدر (وليست مُدخلة يدوياً ولا محذوفة)
+بعد نقاش مع فريق العمل، مرّ هذا الحقل بثلاث مراحل تصميمية (موثّقة بالتفصيل في `CLAUDE.md` §4.2):
+1. إدخال يدوي (الأصل) — تخمين غير موثوق.
+2. حذف كامل + مقارنة إجماليات الشيتين مباشرة — **جُرِّب وثبت خطؤه فعلياً**: كان يُبقي "هدراً وهمياً" عالقاً في رصيد "عند المحمصة" حتى بعد اكتمال استلام الدفعة بالكامل.
+3. **التصميم الحالي**: يُحسب تلقائياً بمعادلة بسيطة عند كل استلام:
+   ```
+   الكمية المرسلة المقدَّرة = الكمية المستلمة ÷ (1 − متوسط نسبة الهدر)
+   ```
+   حيث "متوسط نسبة الهدر" = `Config.AverageRoastingWastePercent` (القيمة الافتراضية `12`، **يجب على المستخدم تحديثها دورياً** لتطابق الواقع التشغيلي الفعلي — أفضل مصدر لمعايرتها هو نسبة الهدر الإجمالية الحقيقية المعروضة في تقرير "الكميات المستلمة بعد التحميص").
 
-**التحقق الصارم الجديد** (بديل مبسّط وأدق من السابق):
-> **إجمالي كل `ReceivedQuantityKg` المُدخلة تراكمياً في `Received_from_Roastery` لا يمكن أن يتجاوز إجمالي `QuantityKg` في `Sent_to_Roastery`.**
+**التحقق الصارم** (يستخدم القيمة المقدَّرة تلقائياً):
+> **إجمالي كل `SentQuantityKg` المقدَّرة تلقائياً في `Received_from_Roastery` لا يمكن أن يتجاوز إجمالي `QuantityKg` في `Sent_to_Roastery`.**
 
-هذا الفرق (`Sent_to_Roastery` الإجمالي ناقص `Received_from_Roastery` الإجمالي) هو **"الرصيد المتبقي عند المحمصة"** (`getAtRoasteryBalance_()`)، ويُعرَض كمؤشر KPI حي في صفحة الإدخال وفي تقرير "الكميات المرسلة للتحميص"، ويُستخدم كحد أقصى صارم عند كل عملية استلام جديدة — بلا أي تخمين يدوي مطلوب من المستخدم، وصحيح بغض النظر عن كيفية تجزئة/دمج المحمصة للدفعات.
+هذا الفرق هو **"الرصيد المتبقي عند المحمصة"** (`getAtRoasteryBalance_()`)، ويُعرَض كمؤشر KPI حي في صفحة الإدخال وتقرير "الكميات المرسلة للتحميص"، ويُصفَّر بشكل صحيح تلقائياً مع اكتمال كل دفعة (بخلاف المرحلة 2 السابقة).
+
+**مهم — استقلالية نسبة الهدر الحقيقية**: نسبة الهدر **الإجمالية** المعروضة في تقرير "الكميات المستلمة بعد التحميص" (بطاقات KPI أعلى الجدول) **لا علاقة لها بهذا التقدير إطلاقاً** — تُحسب دائماً من مقارنة مباشرة بين إجمالي شيت `Sent_to_Roastery` الفعلي وإجمالي `ReceivedQuantityKg` الفعلي، فتبقى دقيقة 100% بغض النظر عن دقة `AverageRoastingWastePercent` المُعتمَد. أما أعمدة `SentQuantityKg`/`WasteKg`/`WastePercent` **لكل صف** فهي تقديرية بالتعريف ومُوسَّمة بوضوح في الواجهة ("تقديري"/"Estimated").
 
 ## 6) `Packing_Process` — التعبئة والتغليف
 | العمود | الوصف |
@@ -105,7 +115,7 @@
 
 ```
 getRawStockBalance_(type)     = Σ RawMaterial_Received.QuantityKg(type) − Σ Sent_to_Roastery.QuantityKg(type)
-getAtRoasteryBalance_()       = Σ Sent_to_Roastery.QuantityKg − Σ Received_from_Roastery.ReceivedQuantityKg
+getAtRoasteryBalance_()       = Σ Sent_to_Roastery.QuantityKg − Σ Received_from_Roastery.SentQuantityKg (تقديري تلقائي)
 getRoastedStockBalance_()     = Σ Received_from_Roastery.ReceivedQuantityKg − Σ Packing_Process.InputQuantityKg
 getPackingInProgressBags_()   = Σ Packing_Process.BagsProduced − Σ Finished_Products.BagsAdded
 getFinishedStockBalance_()    = Σ Finished_Products.BagsAdded − Σ Deliveries.BagsDelivered
@@ -118,7 +128,7 @@ getFinishedStockBalance_()    = Σ Finished_Products.BagsAdded − Σ Deliveries
 |---|---|
 | كل الكميات | يجب أن تكون رقماً موجباً (`> 0`)، عدا `BagsProduced` الذي يقبل `≥ 0` |
 | `Sent_to_Roastery` | `QuantityKg ≤` رصيد الحبوب الخام المتوفر لنفس الصنف |
-| `Received_from_Roastery` | `ReceivedQuantityKg ≤` الرصيد المتبقي "عند المحمصة الآن" (`getAtRoasteryBalance_()` = إجمالي المرسل − إجمالي المستلم سابقاً) — راجع القسم أعلاه لتفاصيل هذا القرار التصميمي |
+| `Received_from_Roastery` | `SentQuantityKg` (المقدَّرة تلقائياً من `ReceivedQuantityKg` المُدخَلة) `≤` الرصيد المتبقي "عند المحمصة الآن" (`getAtRoasteryBalance_()`) — راجع القسم أعلاه لتفاصيل هذا القرار التصميمي |
 | `Packing_Process` | `InputQuantityKg ≤` رصيد القهوة المحمصة المتوفرة |
 | `Finished_Products` | `BagsAdded ≤` عدد الأكياس المتوفرة في طور التعبئة |
 | `Deliveries` | `BagsDelivered ≤` المخزون الجاهز المتاح فعلياً للتسليم (`getFinishedStockBalance_()`) |

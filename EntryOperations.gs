@@ -89,7 +89,7 @@ function submitReceivedFromRoastery(token, data) {
     // المستخدم لها يدوياً - عبر متوسط نسبة الهدر العام المُعتمَد في Config
     // (يُحدَّث دورياً من طرف المستخدم ليطابق الواقع، راجع docs/Database.md).
     // مثال: استُلم 88كغ ومتوسط الهدر 12% → الكمية المرسلة المقدَّرة = 88/0.88 = 100كغ.
-    const avgWastePercent = Number(getConfigMap_().AverageRoastingWastePercent || 12);
+    const avgWastePercent = (Number(getConfigMap_().AverageRoastingWastePercent) || 12);
     const safeAvgWastePercent = (avgWastePercent >= 0 && avgWastePercent < 100) ? avgWastePercent : 12;
     const estimatedSent = received / (1 - safeAvgWastePercent / 100);
 
@@ -162,7 +162,7 @@ function submitPackingProcess(token, data) {
       );
     }
 
-    const bagSizeKg = Number(getConfigMap_().BagSizeKg || BAG_SIZE_KG);
+    const bagSizeKg = (Number(getConfigMap_().BagSizeKg) || BAG_SIZE_KG);
     const bags = Number(data.bagsProduced);
     const expectedOutputKg = bags * bagSizeKg;
     const waste = input - expectedOutputKg;
@@ -273,7 +273,7 @@ function getCurrentBalances(token) {
   requireSession_(token);
   const cfg = getConfigMap_();
   const type1 = cfg.CoffeeType1, type2 = cfg.CoffeeType2;
-  return {
+  const result = {
     rawStock: {
       [type1]: Math.round(getRawStockBalance_(type1) * 1000) / 1000,
       [type2]: Math.round(getRawStockBalance_(type2) * 1000) / 1000
@@ -283,7 +283,21 @@ function getCurrentBalances(token) {
     packingInProgressBags: getPackingInProgressBags_(),
     finishedBags: sumBagsFinished_(),
     finishedStockAvailable: getFinishedStockBalance_(),
-    avgRoastingWastePercent: Number(cfg.AverageRoastingWastePercent || 12),
+    avgRoastingWastePercent: (Number(cfg.AverageRoastingWastePercent) || 12),
     coffeeTypes: [type1, type2]
   };
+
+  // نفس الفحص الدفاعي المستخدم في getAllReports() (ReportsOperations.gs):
+  // يمنع فشلاً صامتاً (null بلا أي خطأ) لو تسرّبت NaN/Infinity/undefined هنا
+  // مستقبلاً بالخطأ - يرمي خطأ صريحاً يحدد المكان بدل تركه لغزاً. راجع
+  // CLAUDE.md (قسم أسلوب الكود) لمثال حقيقي حدث فعلاً بسبب هذا بالضبط.
+  const badPath = findUnserializableValue_(result, 'getCurrentBalances result');
+  if (badPath) {
+    throw new Error(
+      'قيمة غير صالحة في الأرصدة عند: ' + badPath + ' — راجع شيت Config (قد تحتوي قيمة غير رقمية بالخطأ). / ' +
+      'Invalid value in balances at: ' + badPath + ' — check the Config sheet (may contain a non-numeric value by mistake).'
+    );
+  }
+
+  return result;
 }

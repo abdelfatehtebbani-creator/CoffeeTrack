@@ -191,6 +191,34 @@
         </table></div>
       </div>
 
+      <!-- 8. Forecast (التنبؤات) -->
+      <div class="card card-accent-gold" id="forecastCard">
+        <div class="card-title"><span class="dot"></span>
+          <span class="i18n" data-ar="🔮 التنبؤات" data-en="🔮 Forecast">🔮 التنبؤات</span>
+        </div>
+        <p class="i18n" style="font-size:12px;color:var(--text-muted);margin:-4px 0 16px" data-ar="تقديرات مبنية على متوسطات الهدر المُعتمَدة في Config (وليست أرقاماً مضمونة) — حدّث هذه المتوسطات دورياً من شيت Config لتحسين دقة التنبؤات." data-en="Estimates based on the average waste rates configured in Config (not guaranteed figures) — update these averages periodically in the Config sheet to improve forecast accuracy.">تقديرات مبنية على متوسطات الهدر المُعتمَدة في Config (وليست أرقاماً مضمونة) — حدّث هذه المتوسطات دورياً من شيت Config لتحسين دقة التنبؤات.</p>
+
+        <h4 class="i18n" style="margin:0 0 8px;font-size:14px;color:var(--brand-brown)" data-ar="1) من القهوة المحمصة المتوفرة الآن" data-en="1) From Currently Available Roasted Coffee">1) من القهوة المحمصة المتوفرة الآن</h4>
+        <div class="kpi-grid" id="forecast1-grid" style="margin-bottom:20px"></div>
+
+        <h4 class="i18n" style="margin:0 0 8px;font-size:14px;color:var(--brand-brown)" data-ar="2) عند استنفاذ كامل المخزون (خام + عند المحمصة + محمص)" data-en="2) When the Entire Pipeline Is Fully Processed">2) عند استنفاذ كامل المخزون (خام + عند المحمصة + محمص)</h4>
+        <div class="kpi-grid" id="forecast2-grid" style="margin-bottom:20px"></div>
+
+        <h4 class="i18n" style="margin:0 0 8px;font-size:14px;color:var(--brand-brown)" data-ar="3) حاسبة الطلبية — كم أشتري لطلبية معيّنة؟" data-en="3) Order Calculator — How Much to Purchase for a Given Order?">3) حاسبة الطلبية — كم أشتري لطلبية معيّنة؟</h4>
+        <div class="form-grid" style="margin-bottom:12px">
+          <div class="field">
+            <label class="i18n" data-ar="حجم الطلبية (كيس)" data-en="Order Size (bags)">حجم الطلبية (كيس)</label>
+            <input type="number" step="1" id="forecastOrderBags" placeholder="500">
+          </div>
+          <div class="field" style="display:flex;align-items:flex-end">
+            <button class="btn btn-primary" onclick="calculateOrder_()">
+              <span class="i18n" data-ar="احسب" data-en="Calculate">احسب</span>
+            </button>
+          </div>
+        </div>
+        <div class="kpi-grid" id="forecast3-grid"></div>
+      </div>
+
     </div>
   </div>
 
@@ -203,6 +231,7 @@
     let LANG = 'ar';
     let lastReportsData_ = null; // نخزّن آخر بيانات تقارير لإعادة رسمها عند تبديل اللغة
     let lastTodayActivity_ = null; // نخزّن آخر بيانات نشاط اليوم لنفس السبب
+    let lastForecastData_ = null; // نخزّن آخر بيانات تنبؤات لنفس السبب
     let filterFrom_ = '';
     let filterTo_ = '';
 
@@ -220,6 +249,7 @@
       if(role === 'Admin') document.getElementById('entryNavBtn').style.display = 'inline-flex';
       refreshAll();
       loadTodayActivity();
+      loadForecast();
     }
 
     function goEntry(){ window.top.location.href = BASE_URL + '?page=entry'; }
@@ -239,6 +269,7 @@
       // وليست عناصر .i18n ثابتة، لذا يجب إعادة رسمها يدوياً عند تبديل اللغة.
       if(lastReportsData_) renderAll_(lastReportsData_);
       if(lastTodayActivity_) renderTodayActivity_(lastTodayActivity_);
+      if(lastForecastData_) renderForecast_(lastForecastData_);
     }
 
     function loadTodayActivity(){
@@ -268,6 +299,59 @@
           <div class="kpi-value">${i.value}</div>
         </div>
       `).join('');
+    }
+
+    function loadForecast(){
+      google.script.run
+        .withSuccessHandler(function(fc){
+          lastForecastData_ = fc;
+          renderForecast_(fc);
+        })
+        .withFailureHandler(function(err){ console.error(err); })
+        .reportForecast(TOKEN);
+    }
+
+    function calculateOrder_(){
+      const bags = document.getElementById('forecastOrderBags').value;
+      if (!bags || Number(bags) <= 0) return;
+      google.script.run
+        .withSuccessHandler(function(fc){
+          lastForecastData_ = fc;
+          renderForecast_(fc);
+        })
+        .withFailureHandler(function(err){ alert(err.message || String(err)); })
+        .reportForecast(TOKEN, Number(bags));
+    }
+
+    function renderForecast_(fc){
+      const lang = LANG;
+      const bagWord = lang === 'ar' ? 'كيس' : 'bags';
+      const kgWord = lang === 'ar' ? 'كغ' : 'kg';
+
+      document.getElementById('forecast1-grid').innerHTML =
+        kpi_('قهوة محمصة متوفرة (كغ)', 'Roasted Available (kg)', fc.currentStock.roastedAvailableKg) +
+        kpi_('أكياس متوقعة من المتوفر (' + fc.config.avgPackingWastePercent + '% هدر تعبئة)', 'Expected Bags (at ' + fc.config.avgPackingWastePercent + '% packing waste)', fc.prediction1_bagsFromRoastedAvailable + ' ' + bagWord);
+
+      document.getElementById('forecast2-grid').innerHTML =
+        kpi_('إنتاج مستقبلي متوقع من كامل خط الأنابيب', 'Future Production from Full Pipeline', fc.prediction2_fullPipeline.futureProducedBags + ' ' + bagWord) +
+        kpi_('جاهز حالياً (منتج نهائي)', 'Currently Finished & Ready', fc.prediction2_fullPipeline.currentFinishedBags + ' ' + bagWord) +
+        kpi_('الإجمالي الكلي المتوقع', 'Grand Total Expected', fc.prediction2_fullPipeline.grandTotalBags + ' ' + bagWord);
+
+      const forecast3 = document.getElementById('forecast3-grid');
+      if (fc.orderCalculation) {
+        const oc = fc.orderCalculation;
+        const t1 = fc.blendRatioPercent ? Object.keys(fc.blendRatioPercent)[0] : '';
+        const t2 = fc.blendRatioPercent ? Object.keys(fc.blendRatioPercent)[1] : '';
+        forecast3.innerHTML =
+          kpi_('إجمالي الحبوب الخام المطلوبة للطلبية', 'Total Raw Beans Needed for Order', oc.requiredRawKgTotal + ' ' + kgWord) +
+          kpi_('يغطيه المخزون الحالي', 'Covered by Current Stock', oc.bagsAlreadyCoveredByCurrentStock + ' ' + bagWord) +
+          kpi_('صافي الشراء الإضافي المطلوب', 'Net Additional Purchase Needed', oc.netAdditionalRawKg + ' ' + kgWord) +
+          (t1 ? kpi_('منه ' + t1 + ' (كغ)', 'Of which ' + t1 + ' (kg)', oc.netAdditionalByType[t1]) : '') +
+          (t2 ? kpi_('منه ' + t2 + ' (كغ)', 'Of which ' + t2 + ' (kg)', oc.netAdditionalByType[t2]) : '');
+      } else {
+        forecast3.innerHTML = '<div class="empty-state i18n" data-ar="أدخل حجم الطلبية أعلاه واضغط احسب" data-en="Enter an order size above and click Calculate">' +
+          (lang === 'ar' ? 'أدخل حجم الطلبية أعلاه واضغط احسب' : 'Enter an order size above and click Calculate') + '</div>';
+      }
     }
 
     function refreshAll(){

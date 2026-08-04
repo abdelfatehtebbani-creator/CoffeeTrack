@@ -92,6 +92,7 @@ function seedConfig_(ss) {
     ['CoffeeType1', 'Arabica', 'الصنف الأول / Coffee type 1'],
     ['CoffeeType2', 'Robusta', 'الصنف الثاني / Coffee type 2'],
     ['AverageRoastingWastePercent', '12', 'متوسط نسبة هدر التحميص المُعتمَد لتقدير "الكمية المرسلة" تلقائياً عند الاستلام - حدّثه دورياً ليطابق الواقع الفعلي (راجع نسبة الهدر الإجمالية الحقيقية في التقارير) / Average roasting waste % used to auto-estimate "Sent Quantity" on receipt - update periodically to match actual observed waste in reports'],
+    ['AveragePackingWastePercent', '2', 'متوسط نسبة هدر التعبئة المُعتمَد لحسابات التنبؤات في التقارير - حدّثه دورياً ليطابق الواقع الفعلي / Average packing waste % used for forecast calculations in Reports - update periodically to match actual observed waste'],
     ['MaxRoastingWastePercent', '20', 'حد تحذير نسبة هدر التحميص / Warning threshold %'],
     ['MaxPackingWastePercent', '5', 'حد تحذير نسبة هدر التعبئة / Warning threshold %']
   ];

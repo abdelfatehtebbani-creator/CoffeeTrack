@@ -71,6 +71,9 @@
         <button class="tab-btn" data-tab="delivery" onclick="showTab('delivery')">
           <span class="i18n" data-ar="تسليم" data-en="Delivery">تسليم</span>
         </button>
+        <button class="tab-btn" data-tab="orders" onclick="showTab('orders')">
+          <span class="i18n" data-ar="الطلبيات" data-en="Orders">الطلبيات</span>
+        </button>
       </div>
     </div>
 
@@ -189,6 +192,43 @@
       </button>
       <div class="alert" id="alert-delivery"></div>
     </div>
+
+    <!-- ===== FORM 7: Orders (الطلبيات) ===== -->
+    <div class="card tab-panel" id="panel-orders" style="display:none">
+      <div class="card-title"><span class="dot"></span>
+        <span class="i18n" data-ar="الطلبيات النشطة" data-en="Active Orders">الطلبيات النشطة</span>
+      </div>
+      <div class="kpi-grid" id="ordersSummaryGrid" style="margin-bottom:16px"></div>
+      <div class="table-wrap" style="margin-bottom:20px"><table>
+        <thead><tr>
+          <th class="i18n" data-ar="العميل" data-en="Customer">العميل</th>
+          <th class="i18n" data-ar="الكمية (كيس)" data-en="Bags">الكمية (كيس)</th>
+          <th class="i18n" data-ar="التسليم المتوقع" data-en="Expected Delivery">التسليم المتوقع</th>
+          <th class="i18n" data-ar="التغطية" data-en="Coverage">التغطية</th>
+          <th class="i18n" data-ar="الحالة" data-en="Status">الحالة</th>
+          <th class="i18n" data-ar="إجراء" data-en="Action">إجراء</th>
+        </tr></thead>
+        <tbody id="ordersTableBody"></tbody>
+      </table></div>
+
+      <div id="orderCreateSection">
+        <div class="card-title"><span class="dot"></span>
+          <span class="i18n" data-ar="طلبية جديدة" data-en="New Order">طلبية جديدة</span>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label class="i18n" data-ar="تاريخ الطلبية" data-en="Order Date">تاريخ الطلبية</label><input type="date" id="order_date"></div>
+          <div class="field"><label class="i18n" data-ar="اسم العميل" data-en="Customer Name">اسم العميل</label><input type="text" id="order_customer"></div>
+          <div class="field"><label class="i18n" data-ar="الكمية (كيس)" data-en="Bags Ordered">الكمية (كيس)</label><input type="number" step="1" id="order_bags"></div>
+          <div class="field"><label class="i18n" data-ar="تاريخ التسليم المتوقع" data-en="Expected Delivery Date">تاريخ التسليم المتوقع</label><input type="date" id="order_deliveryDate"></div>
+          <div class="field full"><label class="i18n" data-ar="ملاحظات" data-en="Notes">ملاحظات</label><textarea id="order_notes" rows="2"></textarea></div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:16px" onclick="submitForm('orders', this)">
+          <span class="i18n" data-ar="إنشاء الطلبية" data-en="Create Order">إنشاء الطلبية</span>
+        </button>
+        <div class="alert" id="alert-orders"></div>
+      </div>
+      <p id="orderCreatePermissionNote" class="i18n" style="display:none;font-size:12.5px;color:var(--text-muted)" data-ar="إنشاء الطلبيات وتعديل حالتها متاح لدور Admin فقط." data-en="Creating orders and changing their status is available to the Admin role only.">إنشاء الطلبيات وتعديل حالتها متاح لدور Admin فقط.</p>
+    </div>
   </div>
 
   <script>
@@ -201,6 +241,7 @@
     let lastBalances_ = null; // نخزّن آخر بيانات مؤشرات لإعادة رسمها عند تبديل اللغة
     let lastTodayActivity_ = null; // نخزّن آخر بيانات نشاط اليوم لنفس السبب
     let avgWastePercent_ = 12; // متوسط نسبة هدر التحميص، يُحدَّث من الخادم عند كل تحميل
+    let CURRENT_ROLE = null;
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -212,12 +253,21 @@
         window.top.location.href = BASE_URL + '?page=reports';
         return;
       }
+      CURRENT_ROLE = role;
       document.getElementById('userPill').textContent = sessionStorage.getItem('fullName') + ' · ' + role;
       if(role === 'Admin') document.getElementById('reportsNavBtn').style.display = 'inline-flex';
+
+      // إنشاء الطلبيات وتعديل حالتها متاح لـ Admin فقط - الفحص الحقيقي على
+      // الخادم (adminOnlyRoles_ في EntryOperations.gs)، هذا فقط لتجربة المستخدم.
+      if(role !== 'Admin'){
+        document.getElementById('orderCreateSection').style.display = 'none';
+        document.getElementById('orderCreatePermissionNote').style.display = 'block';
+      }
 
       setDefaultDates_();
       loadBalances();
       loadTodayActivity();
+      loadOrders();
     }
 
     function goReports(){ window.top.location.href = BASE_URL + '?page=reports'; }
@@ -229,7 +279,7 @@
 
     function setDefaultDates_(){
       const today = new Date().toISOString().slice(0,10);
-      ['raw_date','sent_date','received_date','packing_date','finished_date','delivery_date'].forEach(id => {
+      ['raw_date','sent_date','received_date','packing_date','finished_date','delivery_date','order_date'].forEach(id => {
         document.getElementById(id).value = today;
       });
     }
@@ -339,6 +389,64 @@
       `).join('');
     }
 
+    let lastOrdersData_ = null;
+
+    function loadOrders(){
+      google.script.run
+        .withSuccessHandler(function(od){
+          lastOrdersData_ = od;
+          renderOrders_(od);
+        })
+        .withFailureHandler(function(err){ console.error(err); })
+        .getActiveOrders(TOKEN);
+    }
+
+    function coverageBadge_(coverage, lang){
+      const map = {
+        ready:      { cls: 'badge-ok',     ar: '🟢 جاهزة الآن', en: '🟢 Ready Now' },
+        needs_production: { cls: 'badge-warn', ar: '🟡 يحتاج إنتاجاً', en: '🟡 Needs Production' },
+        insufficient: { cls: 'badge-danger', ar: '🔴 غير كافٍ', en: '🔴 Insufficient' }
+      };
+      const m = map[coverage] || map.insufficient;
+      return `<span class="badge ${m.cls}">${lang === 'ar' ? m.ar : m.en}</span>`;
+    }
+
+    function renderOrders_(od){
+      const lang = document.body.dir === 'rtl' ? 'ar' : 'en';
+      const bagWord = lang === 'ar' ? 'كيس' : 'bags';
+
+      document.getElementById('ordersSummaryGrid').innerHTML =
+        `<div class="kpi"><div class="kpi-label">${lang==='ar'?'جاهز حالياً':'Ready Now'}</div><div class="kpi-value">${od.currentFinishedBags} ${bagWord}</div></div>` +
+        `<div class="kpi"><div class="kpi-label">${lang==='ar'?'الإجمالي المتوقع من خط الإنتاج':'Projected Total from Pipeline'}</div><div class="kpi-value">${od.projectedGrandTotalBags} ${bagWord}</div></div>` +
+        `<div class="kpi"><div class="kpi-label">${lang==='ar'?'عدد الطلبيات النشطة':'Active Orders'}</div><div class="kpi-value">${od.orders.length}</div></div>`;
+
+      const isAdmin = CURRENT_ROLE === 'Admin';
+      const statusOptions = Object.values(od.statuses || {});
+
+      document.getElementById('ordersTableBody').innerHTML = od.orders.map(o => {
+        const actionCell = isAdmin
+          ? `<select onchange="changeOrderStatus_('${o.id}', this.value)" style="padding:4px 8px;border-radius:8px;border:1px solid rgba(74,44,29,.15)">
+               ${statusOptions.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
+             </select>`
+          : '—';
+        return `<tr>
+          <td>${o.customerName || ''}</td>
+          <td>${o.bagsOrdered}</td>
+          <td>${o.expectedDeliveryDate || ''}</td>
+          <td>${coverageBadge_(o.coverage, lang)}</td>
+          <td>${o.status}</td>
+          <td>${actionCell}</td>
+        </tr>`;
+      }).join('') || `<tr><td colspan="6" class="empty-state">${lang==='ar'?'لا توجد طلبيات نشطة':'No active orders'}</td></tr>`;
+    }
+
+    function changeOrderStatus_(orderId, newStatus){
+      google.script.run
+        .withSuccessHandler(function(){ loadOrders(); })
+        .withFailureHandler(function(err){ alert(err.message || String(err)); loadOrders(); })
+        .updateOrderStatus(TOKEN, orderId, newStatus);
+    }
+
     function handleSessionError_(err){
       alert(err.message || String(err));
       sessionStorage.clear();
@@ -387,6 +495,10 @@
         delivery: { fn: 'submitDelivery', data: {
           date: v_('delivery_date'), batchRef: v_('delivery_batch'),
           bagsDelivered: v_('delivery_bags'), customer: v_('delivery_customer'), notes: v_('delivery_notes')
+        }},
+        orders: { fn: 'submitOrder', data: {
+          orderDate: v_('order_date'), customerName: v_('order_customer'),
+          bagsOrdered: v_('order_bags'), expectedDeliveryDate: v_('order_deliveryDate'), notes: v_('order_notes')
         }}
       };
       const cfg = fnMap[panel];
@@ -397,6 +509,7 @@
           clearPanelInputs_(panel);
           loadBalances();
           loadTodayActivity();
+          loadOrders();
         })
         .withFailureHandler(function(err){
           if(btnEl){ btnEl.disabled = false; btnEl.innerHTML = originalHtml; }

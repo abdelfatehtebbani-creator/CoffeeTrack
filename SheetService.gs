@@ -269,3 +269,80 @@ function sumBagsDelivered_() {
 function getFinishedStockBalance_() {
   return sumBagsFinished_() - sumBagsDelivered_();
 }
+
+// ===================================================================
+// تحديث صف موجود بواسطة ID (يُستخدم لتحديث حالة الطلبيات - Orders)
+// ===================================================================
+
+/** يبحث عن رقم الصف (row number) الذي يحمل ID معيّناً في العمود الأول. يُرجع null إن لم يوجد. */
+function findRowNumberById_(sheetName, id) {
+  const sheet = getSheet_(sheetName);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (ids[i][0] === id) return i + 2;
+  }
+  return null;
+}
+
+/** يحدّث قيمة عمود واحد لصف مُحدَّد بواسطة ID (يبحث عن اسم العمود ضمن رؤوس الشيت). */
+function updateCellByRowId_(sheetName, id, columnName, newValue) {
+  const sheet = getSheet_(sheetName);
+  const rowNum = findRowNumberById_(sheetName, id);
+  if (!rowNum) throw new Error('لم يُعثر على السجل / Record not found: ' + id);
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const colIndex = headers.indexOf(columnName);
+  if (colIndex === -1) throw new Error('العمود غير موجود / Column not found: ' + columnName);
+  sheet.getRange(rowNum, colIndex + 1).setValue(newValue);
+}
+
+// ===================================================================
+// محرك التنبؤ الأساسي (Pipeline Forecast) — دالة حساب داخلية بحتة، بلا أي
+// تحقق من الصلاحيات. تُستدعى من كل من reportForecast() (ReportsOperations.gs،
+// Admin/Accountant) وgetActiveOrders() (EntryOperations.gs، أي دور)، تفادياً
+// لتكرار المنطق ولاتصال مباشر بين الملفين (راجع CLAUDE.md §3).
+// ===================================================================
+function computePipelineForecast_() {
+  const cfg = getConfigMap_();
+  const type1 = cfg.CoffeeType1, type2 = cfg.CoffeeType2;
+  const bagSizeKg = (Number(cfg.BagSizeKg) || 0.2);
+  const avgRoastWaste = (Number(cfg.AverageRoastingWastePercent) || 12) / 100;
+  const avgPackWaste = (Number(cfg.AveragePackingWastePercent) || 2) / 100;
+
+  const rawKgByType = { [type1]: getRawStockBalance_(type1), [type2]: getRawStockBalance_(type2) };
+  const rawKgTotal = rawKgByType[type1] + rawKgByType[type2];
+  const atRoasteryKg = getAtRoasteryBalance_();
+  const roastedAvailableKg = getRoastedStockBalance_();
+  const packingInProgressBags = getPackingInProgressBags_();
+  const finishedAvailableBags = getFinishedStockBalance_();
+
+  // سؤال 1: القهوة المحمصة المتوفرة الآن (جاهزة للتعبئة) → كم كيس ستنتج؟
+  const bagsFromRoastedAvailable = Math.floor((roastedAvailableKg * (1 - avgPackWaste)) / bagSizeKg);
+
+  // سؤال 2: عند استنفاذ كامل المخزون (خام + عند المحمصة + محمص متوفر)
+  const projectedRoastedFromRawKg = (rawKgTotal + atRoasteryKg) * (1 - avgRoastWaste);
+  const totalRoastedEquivalentKg = projectedRoastedFromRawKg + roastedAvailableKg;
+  const futureProducedBags = Math.floor((totalRoastedEquivalentKg * (1 - avgPackWaste)) / bagSizeKg) + packingInProgressBags;
+  const grandTotalWithCurrentFinished = futureProducedBags + finishedAvailableBags;
+
+  // نسبة الخلط التاريخية بين الصنفين
+  const sentType1 = sumSentToRoastery_(type1);
+  const sentType2 = sumSentToRoastery_(type2);
+  const sentTotal = sentType1 + sentType2;
+  const blendRatioPercent = sentTotal > 0
+    ? { [type1]: Math.round((sentType1 / sentTotal) * 10000) / 100, [type2]: Math.round((sentType2 / sentTotal) * 10000) / 100 }
+    : { [type1]: 50, [type2]: 50 };
+
+  return {
+    type1: type1, type2: type2, bagSizeKg: bagSizeKg,
+    avgRoastWaste: avgRoastWaste, avgPackWaste: avgPackWaste,
+    rawKgByType: rawKgByType, rawKgTotal: rawKgTotal, atRoasteryKg: atRoasteryKg,
+    roastedAvailableKg: roastedAvailableKg, packingInProgressBags: packingInProgressBags,
+    finishedAvailableBags: finishedAvailableBags,
+    bagsFromRoastedAvailable: bagsFromRoastedAvailable,
+    futureProducedBags: futureProducedBags,
+    grandTotalWithCurrentFinished: grandTotalWithCurrentFinished,
+    blendRatioPercent: blendRatioPercent
+  };
+}

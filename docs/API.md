@@ -95,6 +95,29 @@
 - **الأخطاء**: جلسة غير صالحة فقط (أي دور مسجَّل دخول يمكنه قراءتها، تُستخدم أيضاً لملء قوائم الأصناف المنسدلة).
 - **يُستدعى من**: `Entry.html` → `loadBalances()` عند تحميل الصفحة وبعد كل عملية حفظ ناجحة.
 
+### `submitOrder(token, data)`
+- **الغرض**: إنشاء طلبية جديدة، حالتها الابتدائية دائماً `قيد الانتظار`.
+- **Parameters**: `data = {orderDate, customerName, bagsOrdered, expectedDeliveryDate, notes?}`.
+- **Return**: `{success: true, id, message}`.
+- **الأخطاء**: حقول مفقودة، `bagsOrdered` ≤ 0، **دور غير مصرَّح (Admin فقط)** — `requireRole_(token, adminOnlyRoles_())`.
+- **يُستدعى من**: `Entry.html` → تبويب "الطلبيات" → نموذج "طلبية جديدة" (مرئي لـ Admin فقط في الواجهة).
+
+### `updateOrderStatus(token, orderId, newStatus)`
+- **الغرض**: تحديث حالة طلبية موجودة.
+- **Parameters**: `orderId` (نص، معرّف الطلبية)، `newStatus` (يجب أن يطابق أحد قيم `ORDER_STATUSES` في `Setup.gs` حرفياً).
+- **Return**: `{success: true, message}`.
+- **الأخطاء**: `"حالة غير صالحة"` إن لم تطابق `ORDER_STATUSES`، **دور غير مصرَّح (Admin فقط)**، `"لم يُعثر على السجل"` إن كان `orderId` غير موجود.
+- **يُستدعى من**: `Entry.html` → قائمة منسدلة لكل صف طلبية (مرئية لـ Admin فقط).
+
+### `getActiveOrders(token)`
+- **الغرض**: الطلبيات النشطة (غير `تم التسليم` وغير `ملغاة`)، مرتّبة حسب أقرب تاريخ تسليم متوقع، مع مؤشر تغطية لكل طلبية.
+- **Parameters**: `token` فقط.
+- **Return**: `{orders: [{id, orderDate, customerName, bagsOrdered, expectedDeliveryDate, status, notes, coverage}, ...], currentFinishedBags, projectedGrandTotalBags, statuses}`.
+  - `coverage`: إحدى `'ready'` / `'needs_production'` / `'insufficient'` — راجع `docs/Database.md` (قسم شيت `Orders`) لشرح المنطق والقيد المعروف حول الطلبيات المتعددة المتزامنة.
+  - `statuses`: نسخة من `ORDER_STATUSES` (`Setup.gs`) — تُستخدم لملء القائمة المنسدلة في الواجهة دون تكرار القيم يدوياً هناك.
+- **الأخطاء**: جلسة غير صالحة فقط — **متاحة لأي دور مسجَّل دخول** (عرض فقط، ليست Admin-only).
+- **يُستدعى من**: `Entry.html` → تبويب "الطلبيات" عند تحميل الصفحة وبعد كل عملية حفظ ناجحة في أي نموذج.
+
 ---
 
 ## ReportsOperations.gs
@@ -138,6 +161,13 @@
 - **Return**: `{rawReceived, sentToRoastery, receivedFromRoastery, roastedAvailable, packingInProgress, finishedProducts, deliveries}` (كل مفتاح هو نفس مخرج الدالة المقابلة أعلاه).
 - **الأخطاء**: أي خطأ صلاحية يوقف الاستدعاء بالكامل (لا نتائج جزئية).
 - **يُستدعى من**: `Reports.html` → `refreshAll()` عند تحميل الصفحة، عند الضغط على "تحديث"، وعند تطبيق/مسح فلتر التاريخ (`applyFilter_`, `clearFilter_`).
+
+### `reportForecast(token, targetOrderBags?)`
+- **الغرض**: قسم "🔮 التنبؤات" — يبني على `computePipelineForecast_()` المشتركة (`SheetService.gs`، راجع `docs/Database.md`) لتقدير الإنتاج المستقبلي واحتياج الشراء.
+- **Parameters**: `targetOrderBags` اختياري (عدد صحيح موجب) — بدونه تُرجَع تنبؤات الإنتاج العامة فقط دون `orderCalculation`.
+- **Return**: `{config: {avgRoastingWastePercent, avgPackingWastePercent, bagSizeKg}, currentStock: {...}, prediction1_bagsFromRoastedAvailable, prediction2_fullPipeline: {futureProducedBags, currentFinishedBags, grandTotalBags}, blendRatioPercent, orderCalculation?: {orderBags, requiredRawKgTotal, bagsAlreadyCoveredByCurrentStock, netAdditionalRawKg, netAdditionalByType}}`.
+- **الأخطاء**: خطأ صلاحية (Admin/Accountant)، أو خطأ فحص دفاعي `findUnserializableValue_` إن تسرّبت قيمة Config غير رقمية (نفس آلية `getAllReports`).
+- **يُستدعى من**: `Reports.html` → `loadForecast()` عند تحميل الصفحة، و`calculateOrder_()` عند الضغط على زر "احسب" في حاسبة الطلبية.
 
 ---
 

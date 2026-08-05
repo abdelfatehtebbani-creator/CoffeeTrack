@@ -20,6 +20,8 @@ HTML (Login/Entry/Reports) --google.script.run--> EntryOperations.gs / ReportsOp
 - الدوال **الخاصة/الداخلية** (لا تُستدعى من الواجهة أبداً): تنتهي بشرطة سفلية `_`: `requireSession_`, `appendRow_`, `sumField_`. هذا نمط Apps Script القياسي لإخفاء الدوال عن أي استدعاء خارجي محتمل.
 - أسماء الشيتات ثابتة في `SHEETS` (كائن في `Setup.gs`) — **لا تكتب اسم شيت كنص حرفي (`'RawMaterial_Received'`) في أي مكان آخر**، استخدم `SHEETS.RAW_RECEIVED` دائماً.
 - الأدوار ثابتة في `ROLES` — لا تكتب `'Admin'` كنص حرفي، استخدم `ROLES.ADMIN`.
+- حالات الطلبيات ثابتة في `ORDER_STATUSES` (كائن في `Setup.gs`، نص عربي فعلي كقيمة — مثال: `ORDER_STATUSES.PENDING = 'قيد الانتظار'`) — لا تكتب النص العربي حرفياً في أي دالة تحقق أو مقارنة، استخدم الثابت دائماً.
+- **مجموعات أدوار محدَّدة الصلاحية** (`entryRoles_()`, `reportRoles_()`, `adminOnlyRoles_()`) تُعرَّف كدوال (وليست ثوابت أعلى المستوى) للسبب نفسه المذكور في تعليقاتها: تفادي مشكلة ترتيب تحميل الملفات الأبجدي. أي مجموعة صلاحية جديدة تحتاجها دالة عامة يجب أن تتبع نفس النمط.
 
 ## 3) كيف تتواصل الخدمات (Service Communication)
 - **HTML → Server**: حصراً عبر `google.script.run.withSuccessHandler().withFailureHandler().functionName(...)`. لا يوجد REST API ولا `fetch()` للسيرفر.

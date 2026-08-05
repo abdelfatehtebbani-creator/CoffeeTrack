@@ -301,3 +301,86 @@ function getCurrentBalances(token) {
 
   return result;
 }
+
+// ===================================================================
+// إدارة الطلبيات (Orders) — إنشاء الطلبية وتعديل حالتها: Admin فقط.
+// عرض الطلبيات النشطة: أي دور مسجَّل دخول (يفيد DataEntry لمعرفة الأولويات).
+// ===================================================================
+
+// NOTE: دالة (وليست ثابتاً أعلى المستوى) لنفس سبب entryRoles_()/reportRoles_()
+// أعلاه - تجنّب مشكلة ترتيب تحميل الملفات الأبجدي في Apps Script.
+function adminOnlyRoles_() {
+  return [ROLES.ADMIN];
+}
+
+/** إنشاء طلبية جديدة - حالتها الابتدائية دائماً "قيد الانتظار". Admin فقط. */
+function submitOrder(token, data) {
+  const session = requireRole_(token, adminOnlyRoles_());
+  validateRequired_(data, ['orderDate', 'customerName', 'bagsOrdered', 'expectedDeliveryDate']);
+  validatePositive_(data.bagsOrdered, 'bagsOrdered');
+
+  return withLock_(function() {
+    const id = appendRow_(SHEETS.ORDERS, {
+      OrderDate: data.orderDate,
+      CustomerName: data.customerName,
+      BagsOrdered: Number(data.bagsOrdered),
+      ExpectedDeliveryDate: data.expectedDeliveryDate,
+      Status: ORDER_STATUSES.PENDING,
+      LinkedDeliveryBatchRef: '',
+      Notes: data.notes || '',
+      EnteredBy: session.username
+    });
+
+    writeAudit_(session.username, 'ORDER_CREATED', id + ' / ' + data.bagsOrdered + ' bags for ' + data.customerName);
+    return { success: true, id: id, message: 'تم إنشاء الطلبية بنجاح / Order created successfully' };
+  });
+}
+
+/** تحديث حالة طلبية موجودة. Admin فقط. */
+function updateOrderStatus(token, orderId, newStatus) {
+  const session = requireRole_(token, adminOnlyRoles_());
+  const validStatuses = Object.keys(ORDER_STATUSES).map(k => ORDER_STATUSES[k]);
+  if (validStatuses.indexOf(newStatus) === -1) {
+    throw new Error('حالة غير صالحة / Invalid status: ' + newStatus);
+  }
+
+  return withLock_(function() {
+    updateCellByRowId_(SHEETS.ORDERS, orderId, 'Status', newStatus);
+    writeAudit_(session.username, 'ORDER_STATUS_UPDATE', orderId + ' -> ' + newStatus);
+    return { success: true, message: 'تم تحديث حالة الطلبية / Order status updated' };
+  });
+}
+
+/**
+ * الطلبيات النشطة (غير المُسلَّمة وغير الملغاة)، مرتّبة حسب أقرب تاريخ تسليم
+ * متوقع، مع مؤشر تغطية لكل طلبية (🟢 جاهزة الآن / 🟡 يحتاج إنتاجاً إضافياً
+ * لكن المخزون المتوقع يكفي / 🔴 غير كافٍ حتى مع كامل خط الإنتاج المتوقع).
+ * متاحة لأي دور مسجَّل دخول (لا تتطلب Admin - عرض فقط، وليس تعديلاً).
+ */
+function getActiveOrders(token) {
+  requireSession_(token);
+  const pf = computePipelineForecast_();
+
+  const rows = readSheetAsObjects_(SHEETS.ORDERS)
+    .filter(r => r.Status !== ORDER_STATUSES.DELIVERED && r.Status !== ORDER_STATUSES.CANCELLED)
+    .map(r => {
+      const bagsOrdered = Number(r.BagsOrdered) || 0;
+      let coverage;
+      if (bagsOrdered <= pf.finishedAvailableBags) coverage = 'ready';
+      else if (bagsOrdered <= pf.grandTotalWithCurrentFinished) coverage = 'needs_production';
+      else coverage = 'insufficient';
+      return {
+        id: r.ID, orderDate: r.OrderDate, customerName: r.CustomerName,
+        bagsOrdered: bagsOrdered, expectedDeliveryDate: r.ExpectedDeliveryDate,
+        status: r.Status, notes: r.Notes, coverage: coverage
+      };
+    })
+    .sort((a, b) => String(a.expectedDeliveryDate).localeCompare(String(b.expectedDeliveryDate)));
+
+  return {
+    orders: rows,
+    currentFinishedBags: pf.finishedAvailableBags,
+    projectedGrandTotalBags: pf.grandTotalWithCurrentFinished,
+    statuses: ORDER_STATUSES
+  };
+}

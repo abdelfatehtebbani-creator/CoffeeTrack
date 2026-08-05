@@ -240,6 +240,8 @@ function groupSum_(rows, groupField, sumFieldName) {
 
 /**
  * محرك التنبؤات الكامل - يُستدعى من Reports.html (قسم "🔮 التنبؤات").
+ * يبني على computePipelineForecast_() المشتركة (SheetService.gs) ويضيف
+ * حساب الطلبية الاختياري + فحص الصلاحيات + الفحص الدفاعي.
  * @param {number} [targetOrderBags] - اختياري: حجم طلبية بالأكياس لحساب
  *   الاحتياج الصافي من الشراء لكل صنف (السؤال 3). بدونه، تُرجَع فقط
  *   تنبؤات الإنتاج العامة (السؤالان 1 و2).
@@ -247,87 +249,54 @@ function groupSum_(rows, groupField, sumFieldName) {
 function reportForecast(token, targetOrderBags) {
   requireRole_(token, reportRoles_());
 
-  const cfg = getConfigMap_();
-  const type1 = cfg.CoffeeType1, type2 = cfg.CoffeeType2;
-  const bagSizeKg = (Number(cfg.BagSizeKg) || 0.2);
-  const avgRoastWaste = (Number(cfg.AverageRoastingWastePercent) || 12) / 100;
-  const avgPackWaste = (Number(cfg.AveragePackingWastePercent) || 2) / 100;
-
-  // الأرصدة الحالية بكل مرحلة (نفس دوال الأرصدة المستخدمة في بقية المشروع)
-  const rawKgByType = { [type1]: getRawStockBalance_(type1), [type2]: getRawStockBalance_(type2) };
-  const rawKgTotal = rawKgByType[type1] + rawKgByType[type2];
-  const atRoasteryKg = getAtRoasteryBalance_();
-  const roastedAvailableKg = getRoastedStockBalance_();
-  const packingInProgressBags = getPackingInProgressBags_();
-  const finishedAvailableBags = getFinishedStockBalance_();
-
-  // ===== سؤال 1: القهوة المحمصة المتوفرة الآن (جاهزة للتعبئة) → كم كيس ستنتج؟ =====
-  const bagsFromRoastedAvailable = Math.floor((roastedAvailableKg * (1 - avgPackWaste)) / bagSizeKg);
-
-  // ===== سؤال 2: عند استنفاذ كامل المخزون (خام + عند المحمصة + محمص متوفر) =====
-  // نحوّل الخام (المتوفر بالمخزن + الموجود حالياً عند المحمصة) إلى مكافئ محمص عبر
-  // متوسط هدر التحميص، نجمعه مع المحمص المتوفر فعلاً، ثم نحوّل المجموع لأكياس عبر
-  // متوسط هدر التعبئة. الأكياس قيد التعبئة والجاهزة فعلاً تُضاف مباشرة (أرقام حقيقية
-  // وليست تقديرية، لا تحتاج تحويلاً).
-  const projectedRoastedFromRawKg = (rawKgTotal + atRoasteryKg) * (1 - avgRoastWaste);
-  const totalRoastedEquivalentKg = projectedRoastedFromRawKg + roastedAvailableKg;
-  const futureProducedBags = Math.floor((totalRoastedEquivalentKg * (1 - avgPackWaste)) / bagSizeKg) + packingInProgressBags;
-  const grandTotalWithCurrentFinished = futureProducedBags + finishedAvailableBags;
-
-  // نسبة الخلط التاريخية بين الصنفين (من إجمالي ما أُرسل للتحميص فعلياً على مرّ الوقت)
-  const sentType1 = sumSentToRoastery_(type1);
-  const sentType2 = sumSentToRoastery_(type2);
-  const sentTotal = sentType1 + sentType2;
-  const blendRatioPercent = sentTotal > 0
-    ? { [type1]: Math.round((sentType1 / sentTotal) * 10000) / 100, [type2]: Math.round((sentType2 / sentTotal) * 10000) / 100 }
-    : { [type1]: 50, [type2]: 50 };
+  const pf = computePipelineForecast_();
 
   const result = {
     config: {
-      avgRoastingWastePercent: Math.round(avgRoastWaste * 10000) / 100,
-      avgPackingWastePercent: Math.round(avgPackWaste * 10000) / 100,
-      bagSizeKg: bagSizeKg
+      avgRoastingWastePercent: Math.round(pf.avgRoastWaste * 10000) / 100,
+      avgPackingWastePercent: Math.round(pf.avgPackWaste * 10000) / 100,
+      bagSizeKg: pf.bagSizeKg
     },
     currentStock: {
-      rawKgByType: { [type1]: Math.round(rawKgByType[type1] * 1000) / 1000, [type2]: Math.round(rawKgByType[type2] * 1000) / 1000 },
-      atRoasteryKg: Math.round(atRoasteryKg * 1000) / 1000,
-      roastedAvailableKg: Math.round(roastedAvailableKg * 1000) / 1000,
-      packingInProgressBags: packingInProgressBags,
-      finishedAvailableBags: finishedAvailableBags
+      rawKgByType: { [pf.type1]: Math.round(pf.rawKgByType[pf.type1] * 1000) / 1000, [pf.type2]: Math.round(pf.rawKgByType[pf.type2] * 1000) / 1000 },
+      atRoasteryKg: Math.round(pf.atRoasteryKg * 1000) / 1000,
+      roastedAvailableKg: Math.round(pf.roastedAvailableKg * 1000) / 1000,
+      packingInProgressBags: pf.packingInProgressBags,
+      finishedAvailableBags: pf.finishedAvailableBags
     },
-    prediction1_bagsFromRoastedAvailable: bagsFromRoastedAvailable,
+    prediction1_bagsFromRoastedAvailable: pf.bagsFromRoastedAvailable,
     prediction2_fullPipeline: {
-      futureProducedBags: futureProducedBags,
-      currentFinishedBags: finishedAvailableBags,
-      grandTotalBags: grandTotalWithCurrentFinished
+      futureProducedBags: pf.futureProducedBags,
+      currentFinishedBags: pf.finishedAvailableBags,
+      grandTotalBags: pf.grandTotalWithCurrentFinished
     },
-    blendRatioPercent: blendRatioPercent
+    blendRatioPercent: pf.blendRatioPercent
   };
 
   // ===== سؤال 3 (اختياري): طلبية بحجم X كيس - كم أشتري من كل صنف؟ =====
   if (targetOrderBags && Number(targetOrderBags) > 0) {
     const orderBags = Number(targetOrderBags);
-    const requiredFinishedKg = orderBags * bagSizeKg;
-    const requiredRoastedKg = requiredFinishedKg / (1 - avgPackWaste);
-    const requiredRawKgTotal = requiredRoastedKg / (1 - avgRoastWaste);
+    const requiredFinishedKg = orderBags * pf.bagSizeKg;
+    const requiredRoastedKg = requiredFinishedKg / (1 - pf.avgPackWaste);
+    const requiredRawKgTotal = requiredRoastedKg / (1 - pf.avgRoastWaste);
 
     // نحوّل كل ما هو متوفر حالياً بأي مرحلة إلى "مكافئ خام" (عكس معادلات الهدر)
     // للمقارنة العادلة مع الاحتياج الكلي المحسوب أعلاه من نفس نقطة البداية.
-    const roastedAsRawEquivalent = roastedAvailableKg / (1 - avgRoastWaste);
-    const packingBagsAsRawEquivalent = (packingInProgressBags * bagSizeKg / (1 - avgPackWaste)) / (1 - avgRoastWaste);
-    const finishedBagsAsRawEquivalent = (finishedAvailableBags * bagSizeKg / (1 - avgPackWaste)) / (1 - avgRoastWaste);
-    const totalRawEquivalentAvailable = rawKgTotal + atRoasteryKg + roastedAsRawEquivalent + packingBagsAsRawEquivalent + finishedBagsAsRawEquivalent;
+    const roastedAsRawEquivalent = pf.roastedAvailableKg / (1 - pf.avgRoastWaste);
+    const packingBagsAsRawEquivalent = (pf.packingInProgressBags * pf.bagSizeKg / (1 - pf.avgPackWaste)) / (1 - pf.avgRoastWaste);
+    const finishedBagsAsRawEquivalent = (pf.finishedAvailableBags * pf.bagSizeKg / (1 - pf.avgPackWaste)) / (1 - pf.avgRoastWaste);
+    const totalRawEquivalentAvailable = pf.rawKgTotal + pf.atRoasteryKg + roastedAsRawEquivalent + packingBagsAsRawEquivalent + finishedBagsAsRawEquivalent;
 
     const netAdditionalRawKg = Math.max(0, requiredRawKgTotal - totalRawEquivalentAvailable);
 
     result.orderCalculation = {
       orderBags: orderBags,
       requiredRawKgTotal: Math.round(requiredRawKgTotal * 1000) / 1000,
-      bagsAlreadyCoveredByCurrentStock: Math.min(orderBags, grandTotalWithCurrentFinished),
+      bagsAlreadyCoveredByCurrentStock: Math.min(orderBags, pf.grandTotalWithCurrentFinished),
       netAdditionalRawKg: Math.round(netAdditionalRawKg * 1000) / 1000,
       netAdditionalByType: {
-        [type1]: Math.round(netAdditionalRawKg * (blendRatioPercent[type1] / 100) * 1000) / 1000,
-        [type2]: Math.round(netAdditionalRawKg * (blendRatioPercent[type2] / 100) * 1000) / 1000
+        [pf.type1]: Math.round(netAdditionalRawKg * (pf.blendRatioPercent[pf.type1] / 100) * 1000) / 1000,
+        [pf.type2]: Math.round(netAdditionalRawKg * (pf.blendRatioPercent[pf.type2] / 100) * 1000) / 1000
       }
     };
   }

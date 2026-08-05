@@ -28,6 +28,7 @@ const SHEETS = {
   PACKING: 'Packing_Process',
   FINISHED: 'Finished_Products',
   DELIVERIES: 'Deliveries',
+  ORDERS: 'Orders',
   AUDIT: 'AuditLog'
 };
 
@@ -35,6 +36,14 @@ const ROLES = {
   ADMIN: 'Admin',
   DATA_ENTRY: 'DataEntry',
   ACCOUNTANT: 'Accountant'
+};
+
+const ORDER_STATUSES = {
+  PENDING: 'قيد الانتظار',
+  IN_PRODUCTION: 'قيد الإنتاج',
+  READY: 'جاهزة',
+  DELIVERED: 'تم التسليم',
+  CANCELLED: 'ملغاة'
 };
 
 const BAG_SIZE_KG = 0.2; // 200g bag - default, also stored in Config sheet
@@ -61,6 +70,8 @@ function initializeSpreadsheet() {
     ['ID', 'Date', 'BatchRef', 'BagsAdded', 'ProductName', 'Notes', 'EnteredBy', 'Timestamp']);
   createSheetIfMissing_(ss, SHEETS.DELIVERIES,
     ['ID', 'Date', 'BatchRef', 'BagsDelivered', 'Customer', 'Notes', 'EnteredBy', 'Timestamp']);
+  createSheetIfMissing_(ss, SHEETS.ORDERS,
+    ['ID', 'OrderDate', 'CustomerName', 'BagsOrdered', 'ExpectedDeliveryDate', 'Status', 'LinkedDeliveryBatchRef', 'Notes', 'EnteredBy', 'Timestamp']);
   createSheetIfMissing_(ss, SHEETS.AUDIT,
     ['Timestamp', 'Username', 'Action', 'Details']);
 

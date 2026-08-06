@@ -245,11 +245,16 @@ function groupSum_(rows, groupField, sumFieldName) {
  * @param {number} [targetOrderBags] - اختياري: حجم طلبية بالأكياس لحساب
  *   الاحتياج الصافي من الشراء لكل صنف (السؤال 3). بدونه، تُرجَع فقط
  *   تنبؤات الإنتاج العامة (السؤالان 1 و2).
+ * @param {number|string} [roastWasteOverride] - نسبة هدر تحميص تتجاوز
+ *   Config.AverageRoastingWastePercent لهذا الحساب فقط. عادة تُرسَل من
+ *   الواجهة بالقيمة الفعلية المحسوبة تلقائياً (أو رقم يدوي عدّله المستخدم).
+ * @param {number|string} [packWasteOverride] - نفس الفكرة لهدر التعبئة.
  */
-function reportForecast(token, targetOrderBags) {
+function reportForecast(token, targetOrderBags, roastWasteOverride, packWasteOverride) {
   requireRole_(token, reportRoles_());
 
-  const pf = computePipelineForecast_();
+  const pf = computePipelineForecast_(roastWasteOverride, packWasteOverride);
+  const actualRates = getActualHistoricalWasteRates_();
 
   const result = {
     config: {
@@ -257,6 +262,9 @@ function reportForecast(token, targetOrderBags) {
       avgPackingWastePercent: Math.round(pf.avgPackWaste * 10000) / 100,
       bagSizeKg: pf.bagSizeKg
     },
+    // النسبة الفعلية المحسوبة من البيانات الحقيقية (وليست تخميناً) - تُعرَض في
+    // الواجهة كقيمة مقترحة قابلة للتعديل بدل الاعتماد فقط على Config اليدوي.
+    actualHistoricalRates: actualRates,
     currentStock: {
       rawKgByType: { [pf.type1]: Math.round(pf.rawKgByType[pf.type1] * 1000) / 1000, [pf.type2]: Math.round(pf.rawKgByType[pf.type2] * 1000) / 1000 },
       atRoasteryKg: Math.round(pf.atRoasteryKg * 1000) / 1000,

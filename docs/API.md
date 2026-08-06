@@ -162,12 +162,15 @@
 - **الأخطاء**: أي خطأ صلاحية يوقف الاستدعاء بالكامل (لا نتائج جزئية).
 - **يُستدعى من**: `Reports.html` → `refreshAll()` عند تحميل الصفحة، عند الضغط على "تحديث"، وعند تطبيق/مسح فلتر التاريخ (`applyFilter_`, `clearFilter_`).
 
-### `reportForecast(token, targetOrderBags?)`
+### `reportForecast(token, targetOrderBags?, roastWasteOverride?, packWasteOverride?)`
 - **الغرض**: قسم "🔮 التنبؤات" — يبني على `computePipelineForecast_()` المشتركة (`SheetService.gs`، راجع `docs/Database.md`) لتقدير الإنتاج المستقبلي واحتياج الشراء.
-- **Parameters**: `targetOrderBags` اختياري (عدد صحيح موجب) — بدونه تُرجَع تنبؤات الإنتاج العامة فقط دون `orderCalculation`.
-- **Return**: `{config: {avgRoastingWastePercent, avgPackingWastePercent, bagSizeKg}, currentStock: {...}, prediction1_bagsFromRoastedAvailable, prediction2_fullPipeline: {futureProducedBags, currentFinishedBags, grandTotalBags}, blendRatioPercent, orderCalculation?: {orderBags, requiredRawKgTotal, bagsAlreadyCoveredByCurrentStock, netAdditionalRawKg, netAdditionalByType}}`.
+- **Parameters**:
+  - `targetOrderBags` اختياري (عدد صحيح موجب) — بدونه تُرجَع تنبؤات الإنتاج العامة فقط دون `orderCalculation`.
+  - `roastWasteOverride` / `packWasteOverride` اختياريان — يتجاوزان `Config.AverageRoastingWastePercent`/`AveragePackingWastePercent` **لهذا الحساب فقط** (لا يُكتَبان في Config). عادة تُرسِل الواجهة القيمة الفعلية المحسوبة تلقائياً (`actualHistoricalRates` أدناه)، أو رقماً يدوياً عدّله المستخدم في حقول "🔮 التنبؤات".
+- **Return**: `{config: {avgRoastingWastePercent, avgPackingWastePercent, bagSizeKg}, actualHistoricalRates: {actualRoastWastePercent, actualPackWastePercent, hasEnoughRoastData, hasEnoughPackData}, currentStock: {...}, prediction1_bagsFromRoastedAvailable, prediction2_fullPipeline: {futureProducedBags, currentFinishedBags, grandTotalBags}, blendRatioPercent, orderCalculation?: {orderBags, requiredRawKgTotal, bagsAlreadyCoveredByCurrentStock, netAdditionalRawKg, netAdditionalByType}}`.
+  - `actualHistoricalRates.*`: نسبة الهدر **الفعلية الحقيقية** المحسوبة من بيانات حقيقية (وليست تخميناً) — `actualRoastWastePercent` من مقارنة إجمالي `Sent_to_Roastery` بإجمالي `Received_from_Roastery.ReceivedQuantityKg`، و`actualPackWastePercent` من مقارنة إجمالي `Packing_Process.InputQuantityKg` بإجمالي وزن الأكياس المنتجة فعلياً. تكون `null` إن لم تتوفر بيانات كافية بعد (`hasEnoughRoastData`/`hasEnoughPackData` تُوضّح ذلك). `config.avgRoastingWastePercent`/`avgPackingWastePercent` دائماً تعكسان القيمة **المُستخدَمة فعلياً** في الحساب (سواء كانت من Config، أو من `actualHistoricalRates`، أو تجاوزاً يدوياً من المستخدم).
 - **الأخطاء**: خطأ صلاحية (Admin/Accountant)، أو خطأ فحص دفاعي `findUnserializableValue_` إن تسرّبت قيمة Config غير رقمية (نفس آلية `getAllReports`).
-- **يُستدعى من**: `Reports.html` → `loadForecast()` عند تحميل الصفحة، و`calculateOrder_()` عند الضغط على زر "احسب" في حاسبة الطلبية.
+- **يُستدعى من**: `Reports.html` → `loadForecast()` عند تحميل الصفحة (بلا تجاوز، لعرض النسبة الفعلية المقترحة)، `updateForecastRates_()` عند الضغط على "تحديث التنبؤ بهذه النسب"، و`calculateOrder_()` عند الضغط على "احسب" في حاسبة الطلبية.
 
 ---
 

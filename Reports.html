@@ -196,9 +196,27 @@
         <div class="card-title"><span class="dot"></span>
           <span class="i18n" data-ar="🔮 التنبؤات" data-en="🔮 Forecast">🔮 التنبؤات</span>
         </div>
-        <p class="i18n" style="font-size:12px;color:var(--text-muted);margin:-4px 0 16px" data-ar="تقديرات مبنية على متوسطات الهدر المُعتمَدة في Config (وليست أرقاماً مضمونة) — حدّث هذه المتوسطات دورياً من شيت Config لتحسين دقة التنبؤات." data-en="Estimates based on the average waste rates configured in Config (not guaranteed figures) — update these averages periodically in the Config sheet to improve forecast accuracy.">تقديرات مبنية على متوسطات الهدر المُعتمَدة في Config (وليست أرقاماً مضمونة) — حدّث هذه المتوسطات دورياً من شيت Config لتحسين دقة التنبؤات.</p>
+        <p class="i18n" style="font-size:12px;color:var(--text-muted);margin:-4px 0 16px" data-ar="التنبؤات مبنية على نسبتي الهدر أدناه. النظام يقترح تلقائياً المتوسط الفعلي المحسوب من بياناتك الحقيقية (وليس رقماً ثابتاً) — يمكنك اعتماده كما هو أو تعديله يدوياً." data-en="Forecasts are based on the two waste rates below. The system automatically suggests the actual average computed from your real data (not a fixed guess) — you can keep it or edit it manually.">التنبؤات مبنية على نسبتي الهدر أدناه. النظام يقترح تلقائياً المتوسط الفعلي المحسوب من بياناتك الحقيقية (وليس رقماً ثابتاً) — يمكنك اعتماده كما هو أو تعديله يدوياً.</p>
 
-        <h4 class="i18n" style="margin:0 0 8px;font-size:14px;color:var(--brand-brown)" data-ar="1) من القهوة المحمصة المتوفرة الآن" data-en="1) From Currently Available Roasted Coffee">1) من القهوة المحمصة المتوفرة الآن</h4>
+        <div class="form-grid" style="margin-bottom:8px">
+          <div class="field">
+            <label class="i18n" data-ar="نسبة هدر التحميص المستخدمة (%)" data-en="Roasting Waste % Used">نسبة هدر التحميص المستخدمة (%)</label>
+            <input type="number" step="0.1" id="forecastRoastWaste">
+            <div id="forecastRoastWasteHint" style="font-size:11px;color:var(--text-muted);margin-top:4px"></div>
+          </div>
+          <div class="field">
+            <label class="i18n" data-ar="نسبة هدر التعبئة المستخدمة (%)" data-en="Packing Waste % Used">نسبة هدر التعبئة المستخدمة (%)</label>
+            <input type="number" step="0.1" id="forecastPackWaste">
+            <div id="forecastPackWasteHint" style="font-size:11px;color:var(--text-muted);margin-top:4px"></div>
+          </div>
+          <div class="field" style="display:flex;align-items:flex-end">
+            <button class="btn btn-outline" onclick="updateForecastRates_()">
+              <span class="i18n" data-ar="تحديث التنبؤ بهذه النسب" data-en="Update Forecast with These Rates">تحديث التنبؤ بهذه النسب</span>
+            </button>
+          </div>
+        </div>
+
+        <h4 class="i18n" style="margin:16px 0 8px;font-size:14px;color:var(--brand-brown)" data-ar="1) من القهوة المحمصة المتوفرة الآن" data-en="1) From Currently Available Roasted Coffee">1) من القهوة المحمصة المتوفرة الآن</h4>
         <div class="kpi-grid" id="forecast1-grid" style="margin-bottom:20px"></div>
 
         <h4 class="i18n" style="margin:0 0 8px;font-size:14px;color:var(--brand-brown)" data-ar="2) عند استنفاذ كامل المخزون (خام + عند المحمصة + محمص)" data-en="2) When the Entire Pipeline Is Fully Processed">2) عند استنفاذ كامل المخزون (خام + عند المحمصة + محمص)</h4>
@@ -269,7 +287,7 @@
       // وليست عناصر .i18n ثابتة، لذا يجب إعادة رسمها يدوياً عند تبديل اللغة.
       if(lastReportsData_) renderAll_(lastReportsData_);
       if(lastTodayActivity_) renderTodayActivity_(lastTodayActivity_);
-      if(lastForecastData_) renderForecast_(lastForecastData_);
+      if(lastForecastData_){ renderForecast_(lastForecastData_); renderForecastRateHints_(lastForecastData_); }
     }
 
     function loadTodayActivity(){
@@ -305,22 +323,66 @@
       google.script.run
         .withSuccessHandler(function(fc){
           lastForecastData_ = fc;
+          populateForecastRateInputs_(fc);
           renderForecast_(fc);
         })
         .withFailureHandler(function(err){ console.error(err); })
         .reportForecast(TOKEN);
     }
 
+    /** يملأ حقلي نسبة الهدر بالقيمة الفعلية المحسوبة من البيانات الحقيقية (أول تحميل فقط، لا يُعيد الكتابة فوق تعديل المستخدم لاحقاً). */
+    function populateForecastRateInputs_(fc){
+      const roastField = document.getElementById('forecastRoastWaste');
+      const packField = document.getElementById('forecastPackWaste');
+      if (roastField.dataset.filled) return; // لا نُعيد التعبئة إن كان المستخدم قد بدأ التعديل بالفعل
+      const ar = fc.actualHistoricalRates || {};
+      roastField.value = (ar.actualRoastWastePercent !== null && ar.actualRoastWastePercent !== undefined) ? ar.actualRoastWastePercent : fc.config.avgRoastingWastePercent;
+      packField.value = (ar.actualPackWastePercent !== null && ar.actualPackWastePercent !== undefined) ? ar.actualPackWastePercent : fc.config.avgPackingWastePercent;
+      roastField.dataset.filled = '1';
+      renderForecastRateHints_(fc);
+    }
+
+    function renderForecastRateHints_(fc){
+      const lang = LANG;
+      const ar = fc.actualHistoricalRates || {};
+      const roastHint = ar.hasEnoughRoastData
+        ? (lang === 'ar' ? '🔍 محسوبة من بياناتك الفعلية: ' + ar.actualRoastWastePercent + '%' : '🔍 Computed from your actual data: ' + ar.actualRoastWastePercent + '%')
+        : (lang === 'ar' ? '⚠️ لا توجد بيانات كافية بعد — القيمة المعروضة من Config' : '⚠️ Not enough data yet — value shown is from Config');
+      const packHint = ar.hasEnoughPackData
+        ? (lang === 'ar' ? '🔍 محسوبة من بياناتك الفعلية: ' + ar.actualPackWastePercent + '%' : '🔍 Computed from your actual data: ' + ar.actualPackWastePercent + '%')
+        : (lang === 'ar' ? '⚠️ لا توجد بيانات كافية بعد — القيمة المعروضة من Config' : '⚠️ Not enough data yet — value shown is from Config');
+      document.getElementById('forecastRoastWasteHint').textContent = roastHint;
+      document.getElementById('forecastPackWasteHint').textContent = packHint;
+    }
+
+    /** يُعيد حساب التنبؤ بأكمله (والطلبية إن كانت محسوبة سابقاً) بالنسب الحالية في الحقلين. */
+    function updateForecastRates_(){
+      const roastWaste = document.getElementById('forecastRoastWaste').value;
+      const packWaste = document.getElementById('forecastPackWaste').value;
+      const bags = document.getElementById('forecastOrderBags').value;
+      const orderBags = (bags && Number(bags) > 0) ? Number(bags) : undefined;
+      google.script.run
+        .withSuccessHandler(function(fc){
+          lastForecastData_ = fc;
+          renderForecastRateHints_(fc);
+          renderForecast_(fc);
+        })
+        .withFailureHandler(function(err){ alert(err.message || String(err)); })
+        .reportForecast(TOKEN, orderBags, roastWaste, packWaste);
+    }
+
     function calculateOrder_(){
       const bags = document.getElementById('forecastOrderBags').value;
       if (!bags || Number(bags) <= 0) return;
+      const roastWaste = document.getElementById('forecastRoastWaste').value;
+      const packWaste = document.getElementById('forecastPackWaste').value;
       google.script.run
         .withSuccessHandler(function(fc){
           lastForecastData_ = fc;
           renderForecast_(fc);
         })
         .withFailureHandler(function(err){ alert(err.message || String(err)); })
-        .reportForecast(TOKEN, Number(bags));
+        .reportForecast(TOKEN, Number(bags), roastWaste, packWaste);
     }
 
     function renderForecast_(fc){

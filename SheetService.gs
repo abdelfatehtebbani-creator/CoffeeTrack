@@ -298,17 +298,55 @@ function updateCellByRowId_(sheetName, id, columnName, newValue) {
 }
 
 // ===================================================================
+// النسبة الفعلية التاريخية (وليست تخميناً) — مبنية 100% على بيانات حقيقية
+// موجودة فعلاً، بلا أي افتراض. تُعرَض في واجهة "التنبؤات" كقيمة مقترحة
+// قابلة للتعديل بدل رقم Config ثابت يدخله المستخدم يدوياً بلا سند فعلي.
+// ===================================================================
+function getActualHistoricalWasteRates_() {
+  const totalSent = sumSentToRoastery_();
+  const totalReceived = sumReceivedFromRoastery_();
+  const actualRoastWastePercent = totalSent > 0
+    ? Math.round(((totalSent - totalReceived) / totalSent) * 10000) / 100
+    : null; // null = لا توجد بيانات كافية بعد لحساب متوسط حقيقي
+
+  const packingRows = readSheetAsObjects_(SHEETS.PACKING);
+  const totalPackingInput = packingRows.reduce((s, r) => s + (Number(r.InputQuantityKg) || 0), 0);
+  const totalBagsProduced = packingRows.reduce((s, r) => s + (Number(r.BagsProduced) || 0), 0);
+  const bagSizeKg = (Number(getConfigMap_().BagSizeKg) || 0.2);
+  const totalExpectedOutputKg = totalBagsProduced * bagSizeKg;
+  const actualPackWastePercent = totalPackingInput > 0
+    ? Math.round(((totalPackingInput - totalExpectedOutputKg) / totalPackingInput) * 10000) / 100
+    : null;
+
+  return {
+    actualRoastWastePercent: actualRoastWastePercent,
+    actualPackWastePercent: actualPackWastePercent,
+    hasEnoughRoastData: totalSent > 0,
+    hasEnoughPackData: totalPackingInput > 0
+  };
+}
+
+// ===================================================================
 // محرك التنبؤ الأساسي (Pipeline Forecast) — دالة حساب داخلية بحتة، بلا أي
 // تحقق من الصلاحيات. تُستدعى من كل من reportForecast() (ReportsOperations.gs،
 // Admin/Accountant) وgetActiveOrders() (EntryOperations.gs، أي دور)، تفادياً
 // لتكرار المنطق ولاتصال مباشر بين الملفين (راجع CLAUDE.md §3).
+//
+// @param {number|string} [roastWasteOverride] - نسبة هدر تحميص تتجاوز
+//   Config.AverageRoastingWastePercent لهذا الحساب فقط (لا تُكتَب في Config).
+//   عادة تكون النسبة الفعلية التاريخية المحسوبة (getActualHistoricalWasteRates_)
+//   أو رقم يدوي اختاره المستخدم في واجهة التنبؤات.
+// @param {number|string} [packWasteOverride] - نفس الفكرة لهدر التعبئة.
 // ===================================================================
-function computePipelineForecast_() {
+function computePipelineForecast_(roastWasteOverride, packWasteOverride) {
   const cfg = getConfigMap_();
   const type1 = cfg.CoffeeType1, type2 = cfg.CoffeeType2;
   const bagSizeKg = (Number(cfg.BagSizeKg) || 0.2);
-  const avgRoastWaste = (Number(cfg.AverageRoastingWastePercent) || 12) / 100;
-  const avgPackWaste = (Number(cfg.AveragePackingWastePercent) || 2) / 100;
+
+  const hasRoastOverride = roastWasteOverride !== undefined && roastWasteOverride !== null && roastWasteOverride !== '';
+  const hasPackOverride = packWasteOverride !== undefined && packWasteOverride !== null && packWasteOverride !== '';
+  const avgRoastWaste = (hasRoastOverride ? (Number(roastWasteOverride) || 0) : (Number(cfg.AverageRoastingWastePercent) || 12)) / 100;
+  const avgPackWaste = (hasPackOverride ? (Number(packWasteOverride) || 0) : (Number(cfg.AveragePackingWastePercent) || 2)) / 100;
 
   const rawKgByType = { [type1]: getRawStockBalance_(type1), [type2]: getRawStockBalance_(type2) };
   const rawKgTotal = rawKgByType[type1] + rawKgByType[type2];

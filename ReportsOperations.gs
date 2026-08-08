@@ -284,28 +284,13 @@ function reportForecast(token, targetOrderBags, roastWasteOverride, packWasteOve
   // ===== سؤال 3 (اختياري): طلبية بحجم X كيس - كم أشتري من كل صنف؟ =====
   if (targetOrderBags && Number(targetOrderBags) > 0) {
     const orderBags = Number(targetOrderBags);
-    const requiredFinishedKg = orderBags * pf.bagSizeKg;
-    const requiredRoastedKg = requiredFinishedKg / (1 - pf.avgPackWaste);
-    const requiredRawKgTotal = requiredRoastedKg / (1 - pf.avgRoastWaste);
-
-    // نحوّل كل ما هو متوفر حالياً بأي مرحلة إلى "مكافئ خام" (عكس معادلات الهدر)
-    // للمقارنة العادلة مع الاحتياج الكلي المحسوب أعلاه من نفس نقطة البداية.
-    const roastedAsRawEquivalent = pf.roastedAvailableKg / (1 - pf.avgRoastWaste);
-    const packingBagsAsRawEquivalent = (pf.packingInProgressBags * pf.bagSizeKg / (1 - pf.avgPackWaste)) / (1 - pf.avgRoastWaste);
-    const finishedBagsAsRawEquivalent = (pf.finishedAvailableBags * pf.bagSizeKg / (1 - pf.avgPackWaste)) / (1 - pf.avgRoastWaste);
-    const totalRawEquivalentAvailable = pf.rawKgTotal + pf.atRoasteryKg + roastedAsRawEquivalent + packingBagsAsRawEquivalent + finishedBagsAsRawEquivalent;
-
-    const netAdditionalRawKg = Math.max(0, requiredRawKgTotal - totalRawEquivalentAvailable);
-
+    const need = computeOrderPurchaseNeed_(pf, orderBags);
     result.orderCalculation = {
       orderBags: orderBags,
-      requiredRawKgTotal: Math.round(requiredRawKgTotal * 1000) / 1000,
+      requiredRawKgTotal: need.requiredRawKgTotal,
       bagsAlreadyCoveredByCurrentStock: Math.min(orderBags, pf.grandTotalWithCurrentFinished),
-      netAdditionalRawKg: Math.round(netAdditionalRawKg * 1000) / 1000,
-      netAdditionalByType: {
-        [pf.type1]: Math.round(netAdditionalRawKg * (pf.blendRatioPercent[pf.type1] / 100) * 1000) / 1000,
-        [pf.type2]: Math.round(netAdditionalRawKg * (pf.blendRatioPercent[pf.type2] / 100) * 1000) / 1000
-      }
+      netAdditionalRawKg: need.netAdditionalRawKg,
+      netAdditionalByType: need.netAdditionalByType
     };
   }
 

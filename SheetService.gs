@@ -384,3 +384,35 @@ function computePipelineForecast_(roastWasteOverride, packWasteOverride) {
     blendRatioPercent: blendRatioPercent
   };
 }
+
+/**
+ * يحسب احتياج الشراء الصافي (بالكغ، ولكل صنف) لتغطية عدد أكياس معيّن، بناءً
+ * على نتيجة computePipelineForecast_() (pf) — أي "كم ينقص فعلياً ومن أي صنف"
+ * لتغطية هذه الكمية بالكامل من الصفر مع خصم كل ما هو متوفر حالياً بأي مرحلة.
+ * مشتركة بين reportForecast() (حاسبة الطلبية اليدوية في صفحة التقارير)
+ * وgetActiveOrders() (مؤشر تغطية كل طلبية في صفحة الإدخال) - تفادياً لتكرار
+ * هذا المنطق في مكانين (راجع CLAUDE.md §3).
+ */
+function computeOrderPurchaseNeed_(pf, orderBags) {
+  const requiredFinishedKg = orderBags * pf.bagSizeKg;
+  const requiredRoastedKg = requiredFinishedKg / (1 - pf.avgPackWaste);
+  const requiredRawKgTotal = requiredRoastedKg / (1 - pf.avgRoastWaste);
+
+  // نحوّل كل ما هو متوفر حالياً بأي مرحلة إلى "مكافئ خام" (عكس معادلات الهدر)
+  // للمقارنة العادلة مع الاحتياج الكلي المحسوب أعلاه من نفس نقطة البداية.
+  const roastedAsRawEquivalent = pf.roastedAvailableKg / (1 - pf.avgRoastWaste);
+  const packingBagsAsRawEquivalent = (pf.packingInProgressBags * pf.bagSizeKg / (1 - pf.avgPackWaste)) / (1 - pf.avgRoastWaste);
+  const finishedBagsAsRawEquivalent = (pf.finishedAvailableBags * pf.bagSizeKg / (1 - pf.avgPackWaste)) / (1 - pf.avgRoastWaste);
+  const totalRawEquivalentAvailable = pf.rawKgTotal + pf.atRoasteryKg + roastedAsRawEquivalent + packingBagsAsRawEquivalent + finishedBagsAsRawEquivalent;
+
+  const netAdditionalRawKg = Math.max(0, requiredRawKgTotal - totalRawEquivalentAvailable);
+
+  return {
+    requiredRawKgTotal: Math.round(requiredRawKgTotal * 1000) / 1000,
+    netAdditionalRawKg: Math.round(netAdditionalRawKg * 1000) / 1000,
+    netAdditionalByType: {
+      [pf.type1]: Math.round(netAdditionalRawKg * (pf.blendRatioPercent[pf.type1] / 100) * 1000) / 1000,
+      [pf.type2]: Math.round(netAdditionalRawKg * (pf.blendRatioPercent[pf.type2] / 100) * 1000) / 1000
+    }
+  };
+}

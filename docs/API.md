@@ -110,10 +110,12 @@
 - **يُستدعى من**: `Entry.html` → قائمة منسدلة لكل صف طلبية (مرئية لـ Admin فقط).
 
 ### `getActiveOrders(token)`
-- **الغرض**: الطلبيات النشطة (غير `تم التسليم` وغير `ملغاة`)، مرتّبة حسب أقرب تاريخ تسليم متوقع، مع مؤشر تغطية لكل طلبية.
+- **الغرض**: الطلبيات النشطة (غير `تم التسليم` وغير `ملغاة`)، مرتّبة حسب أقرب تاريخ تسليم متوقع، مع مؤشر تغطية وتفاصيل العجز الفعلي لكل طلبية.
 - **Parameters**: `token` فقط.
-- **Return**: `{orders: [{id, orderDate, customerName, bagsOrdered, expectedDeliveryDate, status, notes, coverage}, ...], currentFinishedBags, projectedGrandTotalBags, statuses}`.
+- **Return**: `{orders: [{id, orderDate, customerName, bagsOrdered, expectedDeliveryDate, status, notes, coverage, netAdditionalRawKg, netAdditionalByType}, ...], currentFinishedBags, projectedGrandTotalBags, statuses, types}`.
   - `coverage`: إحدى `'ready'` / `'needs_production'` / `'insufficient'` — راجع `docs/Database.md` (قسم شيت `Orders`) لشرح المنطق والقيد المعروف حول الطلبيات المتعددة المتزامنة.
+  - `netAdditionalRawKg` / `netAdditionalByType`: العجز الفعلي بالكغ (إجمالاً ولكل صنف) المطلوب شراؤه لتغطية هذه الطلبية بالكامل — محسوب عبر `computeOrderPurchaseNeed_()` المشتركة (`SheetService.gs`، نفس الدالة المستخدمة في حاسبة الطلبية بصفحة التقارير). تكون `0` للطلبيات "🟢 جاهزة الآن".
+  - `types`: مصفوفة أسماء الصنفين `[type1, type2]` — تُستخدم لبناء عرض العجز لكل صنف في الواجهة دون تكرار أسماء الأصناف يدوياً هناك.
   - `statuses`: نسخة من `ORDER_STATUSES` (`Setup.gs`) — تُستخدم لملء القائمة المنسدلة في الواجهة دون تكرار القيم يدوياً هناك.
 - **الأخطاء**: جلسة غير صالحة فقط — **متاحة لأي دور مسجَّل دخول** (عرض فقط، ليست Admin-only).
 - **يُستدعى من**: `Entry.html` → تبويب "الطلبيات" عند تحميل الصفحة وبعد كل عملية حفظ ناجحة في أي نموذج.

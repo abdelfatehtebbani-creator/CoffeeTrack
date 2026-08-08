@@ -205,6 +205,7 @@
           <th class="i18n" data-ar="الكمية (كيس)" data-en="Bags">الكمية (كيس)</th>
           <th class="i18n" data-ar="التسليم المتوقع" data-en="Expected Delivery">التسليم المتوقع</th>
           <th class="i18n" data-ar="التغطية" data-en="Coverage">التغطية</th>
+          <th class="i18n" data-ar="النقص المطلوب شراؤه" data-en="Shortfall to Purchase">النقص المطلوب شراؤه</th>
           <th class="i18n" data-ar="الحالة" data-en="Status">الحالة</th>
           <th class="i18n" data-ar="إجراء" data-en="Action">إجراء</th>
         </tr></thead>
@@ -429,15 +430,21 @@
                ${statusOptions.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
              </select>`
           : '—';
+        const shortfallCell = (o.netAdditionalRawKg > 0)
+          ? `<strong>${o.netAdditionalRawKg} ${lang==='ar'?'كغ':'kg'}</strong><br><span style="font-size:11px;color:var(--text-muted)">${
+              (od.types || []).map(t => t + ': ' + (o.netAdditionalByType[t] || 0) + (lang==='ar'?' كغ':' kg')).join(' + ')
+            }</span>`
+          : `<span style="color:var(--success)">${lang==='ar'?'لا يوجد نقص':'No shortfall'}</span>`;
         return `<tr>
           <td>${o.customerName || ''}</td>
           <td>${o.bagsOrdered}</td>
           <td>${o.expectedDeliveryDate || ''}</td>
           <td>${coverageBadge_(o.coverage, lang)}</td>
+          <td>${shortfallCell}</td>
           <td>${o.status}</td>
           <td>${actionCell}</td>
         </tr>`;
-      }).join('') || `<tr><td colspan="6" class="empty-state">${lang==='ar'?'لا توجد طلبيات نشطة':'No active orders'}</td></tr>`;
+      }).join('') || `<tr><td colspan="7" class="empty-state">${lang==='ar'?'لا توجد طلبيات نشطة':'No active orders'}</td></tr>`;
     }
 
     function changeOrderStatus_(orderId, newStatus){

@@ -369,10 +369,18 @@ function getActiveOrders(token) {
       if (bagsOrdered <= pf.finishedAvailableBags) coverage = 'ready';
       else if (bagsOrdered <= pf.grandTotalWithCurrentFinished) coverage = 'needs_production';
       else coverage = 'insufficient';
+
+      // تفاصيل العجز الفعلي (كم كغ ينقص، ومن أي صنف) - يفيد خصوصاً لحالتي
+      // "يحتاج إنتاجاً" و"غير كافٍ" لمعرفة ماذا يجب شراؤه بالضبط. تُحسب دائماً
+      // (حتى لو كانت صفراً لطلبية "جاهزة") لتبسيط استهلاكها في الواجهة.
+      const need = computeOrderPurchaseNeed_(pf, bagsOrdered);
+
       return {
         id: r.ID, orderDate: r.OrderDate, customerName: r.CustomerName,
         bagsOrdered: bagsOrdered, expectedDeliveryDate: r.ExpectedDeliveryDate,
-        status: r.Status, notes: r.Notes, coverage: coverage
+        status: r.Status, notes: r.Notes, coverage: coverage,
+        netAdditionalRawKg: need.netAdditionalRawKg,
+        netAdditionalByType: need.netAdditionalByType
       };
     })
     .sort((a, b) => String(a.expectedDeliveryDate).localeCompare(String(b.expectedDeliveryDate)));
@@ -381,6 +389,7 @@ function getActiveOrders(token) {
     orders: rows,
     currentFinishedBags: pf.finishedAvailableBags,
     projectedGrandTotalBags: pf.grandTotalWithCurrentFinished,
-    statuses: ORDER_STATUSES
+    statuses: ORDER_STATUSES,
+    types: [pf.type1, pf.type2]
   };
 }
